@@ -96,7 +96,7 @@ interface PlayerProfile {
 
 // ─── MOCK DATA ────────────────────────────────────────────────────────────────
 
-const PLAYER: PlayerProfile = {
+const DEFAULT_PLAYER: PlayerProfile = {
   name: "Your Name",
   position: "Point Guard / Shooting Guard",
   height: "6'1\"",
@@ -117,6 +117,12 @@ const PLAYER: PlayerProfile = {
   awards: ["French National U18 Championship Finalist", "MVP Regional Tournament 2024"],
   stats: "18.2 PPG · 7.4 APG · 3.8 RPG · 2.1 SPG · 42% 3P"
 };
+
+function getPlayer(): PlayerProfile {
+  try { const d = localStorage.getItem("sf_player"); if (d) return JSON.parse(d); } catch {}
+  return DEFAULT_PLAYER;
+}
+function setPlayer(p: PlayerProfile) { localStorage.setItem("sf_player", JSON.stringify(p)); }
 
 const COACHES: Coach[] = [
   // NCAA D1
@@ -448,7 +454,7 @@ function Sidebar({ page, setPage, open, onToggle }: { page: Page; setPage: (p: P
             <span className="text-xs font-bold text-white">🇫🇷</span>
           </div>
           <div className="flex-1 min-w-0">
-            <div className="text-[12px] font-semibold text-white/80 truncate">{PLAYER.name}</div>
+            <div className="text-[12px] font-semibold text-white/80 truncate">{getPlayer().name}</div>
             <div className="text-[10px] text-white/30 font-['JetBrains_Mono'] truncate">PG/SG · 6'1" · 2028</div>
           </div>
           <ChevronRight size={12} className="text-white/20 flex-shrink-0" />
@@ -1258,20 +1264,20 @@ function OutreachPage() {
 
   const resolved = (text: string, coach: typeof previewCoach) =>
     text
-      .replace(/\{\{PlayerName\}\}/g, PLAYER.name)
-      .replace(/\{\{Position\}\}/g, PLAYER.position)
-      .replace(/\{\{Height\}\}/g, PLAYER.height)
-      .replace(/\{\{HeightCm\}\}/g, PLAYER.heightCm)
-      .replace(/\{\{Weight\}\}/g, PLAYER.weight)
-      .replace(/\{\{WeightKg\}\}/g, PLAYER.weightKg)
-      .replace(/\{\{GraduationYear\}\}/g, PLAYER.graduationClass)
-      .replace(/\{\{Country\}\}/g, PLAYER.nationality)
-      .replace(/\{\{CurrentTeam\}\}/g, PLAYER.currentTeam)
-      .replace(/\{\{GPA\}\}/g, PLAYER.gpa)
-      .replace(/\{\{SAT\}\}/g, PLAYER.satScore)
-      .replace(/\{\{Stats\}\}/g, PLAYER.stats)
-      .replace(/\{\{HighlightUrl\}\}/g, PLAYER.highlightUrl)
-      .replace(/\{\{FilmUrl\}\}/g, PLAYER.fullFilmUrl)
+      .replace(/\{\{PlayerName\}\}/g, getPlayer().name)
+      .replace(/\{\{Position\}\}/g, getPlayer().position)
+      .replace(/\{\{Height\}\}/g, getPlayer().height)
+      .replace(/\{\{HeightCm\}\}/g, getPlayer().heightCm)
+      .replace(/\{\{Weight\}\}/g, getPlayer().weight)
+      .replace(/\{\{WeightKg\}\}/g, getPlayer().weightKg)
+      .replace(/\{\{GraduationYear\}\}/g, getPlayer().graduationClass)
+      .replace(/\{\{Country\}\}/g, getPlayer().nationality)
+      .replace(/\{\{CurrentTeam\}\}/g, getPlayer().currentTeam)
+      .replace(/\{\{GPA\}\}/g, getPlayer().gpa)
+      .replace(/\{\{SAT\}\}/g, getPlayer().satScore)
+      .replace(/\{\{Stats\}\}/g, getPlayer().stats)
+      .replace(/\{\{HighlightUrl\}\}/g, getPlayer().highlightUrl)
+      .replace(/\{\{FilmUrl\}\}/g, getPlayer().fullFilmUrl)
       .replace(/\{\{CoachName\}\}/g, coach.headCoach.split(" ").pop() || coach.headCoach)
       .replace(/\{\{School\}\}/g, coach.school)
       .replace(/\{\{Conference\}\}/g, coach.conference)
@@ -1406,27 +1412,27 @@ function CampaignsPage({ onSendEmail }: { onSendEmail?: (c: Coach) => void }) {
     let failed = 0;
     for (const coach of targetCoaches) {
       const subject = OUTREACH_TEMPLATE.subject
-        .replace(/\{\{PlayerName\}\}/g, PLAYER.name)
-        .replace(/\{\{Position\}\}/g, PLAYER.position)
-        .replace(/\{\{GraduationYear\}\}/g, PLAYER.graduationClass)
+        .replace(/\{\{PlayerName\}\}/g, getPlayer().name)
+        .replace(/\{\{Position\}\}/g, getPlayer().position)
+        .replace(/\{\{GraduationYear\}\}/g, getPlayer().graduationClass)
         .replace(/\{\{Division\}\}/g, coach.division)
         .replace(/\{\{CoachName\}\}/g, coach.headCoach.split(" ").pop() || coach.headCoach)
         .replace(/\{\{School\}\}/g, coach.school);
       const body = OUTREACH_TEMPLATE.body
-        .replace(/\{\{PlayerName\}\}/g, PLAYER.name)
-        .replace(/\{\{Position\}\}/g, PLAYER.position)
-        .replace(/\{\{Height\}\}/g, PLAYER.height)
-        .replace(/\{\{HeightCm\}\}/g, PLAYER.heightCm)
-        .replace(/\{\{Weight\}\}/g, PLAYER.weight)
-        .replace(/\{\{WeightKg\}\}/g, PLAYER.weightKg)
-        .replace(/\{\{GraduationYear\}\}/g, PLAYER.graduationClass)
-        .replace(/\{\{Country\}\}/g, PLAYER.nationality)
-        .replace(/\{\{CurrentTeam\}\}/g, PLAYER.currentTeam)
-        .replace(/\{\{GPA\}\}/g, PLAYER.gpa)
-        .replace(/\{\{SAT\}\}/g, PLAYER.satScore)
-        .replace(/\{\{Stats\}\}/g, PLAYER.stats)
-        .replace(/\{\{HighlightUrl\}\}/g, PLAYER.highlightUrl)
-        .replace(/\{\{FilmUrl\}\}/g, PLAYER.fullFilmUrl)
+        .replace(/\{\{PlayerName\}\}/g, getPlayer().name)
+        .replace(/\{\{Position\}\}/g, getPlayer().position)
+        .replace(/\{\{Height\}\}/g, getPlayer().height)
+        .replace(/\{\{HeightCm\}\}/g, getPlayer().heightCm)
+        .replace(/\{\{Weight\}\}/g, getPlayer().weight)
+        .replace(/\{\{WeightKg\}\}/g, getPlayer().weightKg)
+        .replace(/\{\{GraduationYear\}\}/g, getPlayer().graduationClass)
+        .replace(/\{\{Country\}\}/g, getPlayer().nationality)
+        .replace(/\{\{CurrentTeam\}\}/g, getPlayer().currentTeam)
+        .replace(/\{\{GPA\}\}/g, getPlayer().gpa)
+        .replace(/\{\{SAT\}\}/g, getPlayer().satScore)
+        .replace(/\{\{Stats\}\}/g, getPlayer().stats)
+        .replace(/\{\{HighlightUrl\}\}/g, getPlayer().highlightUrl)
+        .replace(/\{\{FilmUrl\}\}/g, getPlayer().fullFilmUrl)
         .replace(/\{\{CoachName\}\}/g, coach.headCoach.split(" ").pop() || coach.headCoach)
         .replace(/\{\{School\}\}/g, coach.school)
         .replace(/\{\{Conference\}\}/g, coach.conference)
@@ -1795,14 +1801,14 @@ function AnalyticsPage() {
 
 // ─── PLAYER PROFILE ───────────────────────────────────────────────────────────
 
-function ProfilePage() {
-  const [profile, setProfile] = useState(PLAYER);
+function ProfilePage({ onProfileSave }: { onProfileSave?: () => void }) {
+  const [profile, setProfile] = useState(getPlayer());
   const [saved, setSaved] = useState(false);
   const [tab, setTab] = useState<"info" | "film" | "resume">("info");
 
   const upd = (k: keyof PlayerProfile) => (v: string) => setProfile(p => ({ ...p, [k]: v }));
 
-  const save = () => { setSaved(true); setTimeout(() => setSaved(false), 2000); };
+  const save = () => { setPlayer(profile); onProfileSave?.(); setSaved(true); setTimeout(() => setSaved(false), 2000); };
 
   return (
     <div className="p-6 max-w-[900px] space-y-5">
@@ -2007,8 +2013,8 @@ function ProfilePage() {
 
 // ─── SETTINGS ─────────────────────────────────────────────────────────────────
 
-function SettingsPage() {
-  const [tab, setTab] = useState<"email" | "sending" | "privacy" | "billing">("email");
+function SettingsPage({ setPage }: { setPage: (p: Page) => void }) {
+  const [tab, setTab] = useState<"profile" | "email" | "sending" | "privacy" | "billing">("profile");
   const cfg = getEmailConfig();
   const [gmailUser, setGmailUser] = useState(cfg.user);
   const [gmailPass, setGmailPass] = useState(cfg.pass);
@@ -2038,6 +2044,7 @@ function SettingsPage() {
   };
 
   const tabs = [
+    { id: "profile", label: "My Profile", icon: User },
     { id: "email", label: "Email Accounts", icon: Mail },
     { id: "sending", label: "Sending Rules", icon: SlidersHorizontal },
     { id: "privacy", label: "Privacy & Security", icon: Shield },
@@ -2059,6 +2066,42 @@ function SettingsPage() {
       </div>
 
       <div className="flex-1 overflow-y-auto p-6 space-y-5">
+        {tab === "profile" && (
+          <>
+            <PageHeader title="My Profile" subtitle="Your player information — used in email templates and your recruiting resume." />
+            <div className="space-y-3 max-w-lg">
+              <Card className="p-4">
+                <div className="text-[10px] font-semibold text-white/25 uppercase tracking-[0.09em] mb-4">Player Info</div>
+                {(["name","position","height","heightCm","weight","weightKg","graduationClass","nationality","currentTeam","primaryGoal"] as (keyof PlayerProfile)[]).map(k => {
+                  const p = getPlayer();
+                  return (
+                    <div key={k} className="flex items-center justify-between py-1.5 border-b border-white/4 last:border-0">
+                      <span className="text-xs text-white/50 capitalize">{k.replace(/([A-Z])/g, ' $1').trim()}</span>
+                      <span className="text-xs text-white/80 font-['JetBrains_Mono']">{String(p[k])}</span>
+                    </div>
+                  );
+                })}
+                <div className="mt-3 pt-3 border-t border-white/6">
+                  <a href="#" onClick={(e) => { e.preventDefault(); setPage("profile"); }} className="text-xs text-violet-400 hover:text-violet-300 transition-colors">Edit full profile →</a>
+                </div>
+              </Card>
+              <Card className="p-4">
+                <div className="text-[10px] font-semibold text-white/25 uppercase tracking-[0.09em] mb-4">Film & Video</div>
+                <div className="space-y-4">
+                  <Field label="Highlight Film URL" note="Used in emails as {{HighlightUrl}}">
+                    <Input value={getPlayer().highlightUrl} onChange={v => { setPlayer({...getPlayer(), highlightUrl: v }); }} prefix={<Video size={12} />} placeholder="https://youtube.com/watch?v=..." />
+                  </Field>
+                  <Field label="Full Game Film URL" note="Used in emails as {{FilmUrl}}">
+                    <Input value={getPlayer().fullFilmUrl} onChange={v => { setPlayer({...getPlayer(), fullFilmUrl: v }); }} prefix={<Video size={12} />} placeholder="https://youtube.com/watch?v=..." />
+                  </Field>
+                  <div className="flex gap-2 pt-1">
+                    <Btn variant="primary" size="sm" onClick={() => { setPlayer(getPlayer()); pushToast("Film URLs saved", "success"); }}>Save Film URLs</Btn>
+                  </div>
+                </div>
+              </Card>
+            </div>
+          </>
+        )}
         {tab === "email" && (
           <>
             <PageHeader title="Email Accounts" subtitle="Connect your Gmail to send recruiting emails through ScoutFlow." />
@@ -2277,29 +2320,29 @@ function ToastBar() {
 function ComposeEmailModal({ coach, onClose }: { coach: Coach; onClose: () => void }) {
   const [subject, setSubject] = useState(
     OUTREACH_TEMPLATE.subject
-      .replace(/\{\{PlayerName\}\}/g, PLAYER.name)
-      .replace(/\{\{Position\}\}/g, PLAYER.position)
-      .replace(/\{\{GraduationYear\}\}/g, PLAYER.graduationClass)
+      .replace(/\{\{PlayerName\}\}/g, getPlayer().name)
+      .replace(/\{\{Position\}\}/g, getPlayer().position)
+      .replace(/\{\{GraduationYear\}\}/g, getPlayer().graduationClass)
       .replace(/\{\{Division\}\}/g, coach.division)
       .replace(/\{\{CoachName\}\}/g, coach.headCoach.split(" ").pop() || coach.headCoach)
       .replace(/\{\{School\}\}/g, coach.school)
   );
   const [body, setBody] = useState(
     OUTREACH_TEMPLATE.body
-      .replace(/\{\{PlayerName\}\}/g, PLAYER.name)
-      .replace(/\{\{Position\}\}/g, PLAYER.position)
-      .replace(/\{\{Height\}\}/g, PLAYER.height)
-      .replace(/\{\{HeightCm\}\}/g, PLAYER.heightCm)
-      .replace(/\{\{Weight\}\}/g, PLAYER.weight)
-      .replace(/\{\{WeightKg\}\}/g, PLAYER.weightKg)
-      .replace(/\{\{GraduationYear\}\}/g, PLAYER.graduationClass)
-      .replace(/\{\{Country\}\}/g, PLAYER.nationality)
-      .replace(/\{\{CurrentTeam\}\}/g, PLAYER.currentTeam)
-      .replace(/\{\{GPA\}\}/g, PLAYER.gpa)
-      .replace(/\{\{SAT\}\}/g, PLAYER.satScore)
-      .replace(/\{\{Stats\}\}/g, PLAYER.stats)
-      .replace(/\{\{HighlightUrl\}\}/g, PLAYER.highlightUrl)
-      .replace(/\{\{FilmUrl\}\}/g, PLAYER.fullFilmUrl)
+      .replace(/\{\{PlayerName\}\}/g, getPlayer().name)
+      .replace(/\{\{Position\}\}/g, getPlayer().position)
+      .replace(/\{\{Height\}\}/g, getPlayer().height)
+      .replace(/\{\{HeightCm\}\}/g, getPlayer().heightCm)
+      .replace(/\{\{Weight\}\}/g, getPlayer().weight)
+      .replace(/\{\{WeightKg\}\}/g, getPlayer().weightKg)
+      .replace(/\{\{GraduationYear\}\}/g, getPlayer().graduationClass)
+      .replace(/\{\{Country\}\}/g, getPlayer().nationality)
+      .replace(/\{\{CurrentTeam\}\}/g, getPlayer().currentTeam)
+      .replace(/\{\{GPA\}\}/g, getPlayer().gpa)
+      .replace(/\{\{SAT\}\}/g, getPlayer().satScore)
+      .replace(/\{\{Stats\}\}/g, getPlayer().stats)
+      .replace(/\{\{HighlightUrl\}\}/g, getPlayer().highlightUrl)
+      .replace(/\{\{FilmUrl\}\}/g, getPlayer().fullFilmUrl)
       .replace(/\{\{CoachName\}\}/g, coach.headCoach.split(" ").pop() || coach.headCoach)
       .replace(/\{\{School\}\}/g, coach.school)
       .replace(/\{\{Conference\}\}/g, coach.conference)
@@ -2379,6 +2422,7 @@ const PAGE_TITLES: Record<Page, string> = {
 export default function App() {
   const [page, setPage] = useState<Page>("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [profileVersion, setProfileVersion] = useState(0);
   const [emailModalCoach, setEmailModalCoach] = useState<Coach | null>(null);
   const [emailConfig, setEmailConfigState] = useState(getEmailConfig());
 
@@ -2393,7 +2437,7 @@ export default function App() {
         <div className="absolute bottom-0 right-0 w-[400px] h-[300px] bg-blue-600/3 rounded-full blur-[100px]" />
       </div>
 
-      <Sidebar page={page} setPage={setPage} open={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
+      <Sidebar key={profileVersion} page={page} setPage={setPage} open={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
 
       <div className={`flex-1 flex flex-col min-h-screen transition-all duration-300 ${sidebarOpen ? 'ml-[216px]' : 'ml-0'}`}>
         <TopBar title={PAGE_TITLES[page]} onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
@@ -2404,8 +2448,8 @@ export default function App() {
           {page === "campaigns" && <CampaignsPage onSendEmail={setEmailModalCoach} />}
           {page === "pipeline" && <PipelinePage />}
           {page === "analytics" && <AnalyticsPage />}
-          {page === "profile" && <ProfilePage />}
-          {page === "settings" && <SettingsPage />}
+          {page === "profile" && <ProfilePage onProfileSave={() => setProfileVersion(v => v + 1)} />}
+          {page === "settings" && <SettingsPage setPage={setPage} />}
         </main>
       </div>
 
