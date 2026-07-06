@@ -376,7 +376,7 @@ function Divider({ className }: { className?: string }) {
 
 const NAV_ITEMS = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { id: "coaches", label: "Coach Database", icon: Users, count: allCoaches.length },
+  { id: "coaches", label: "Coach Database", icon: Users, count: loadCoaches().length },
   { id: "outreach", label: "Outreach", icon: Mail },
   { id: "campaigns", label: "Campaigns", icon: Layers, count: CAMPAIGNS.filter(c => c.status === "active").length },
   { id: "pipeline", label: "Pipeline", icon: Kanban },
@@ -1445,7 +1445,7 @@ function CampaignsPage({ onSendEmail, coaches, onEmailSent }: { onSendEmail?: (c
 
   const runCampaign = async (campaign: Campaign) => {
     setSendingId(campaign.id);
-    const targetCoaches = allCoaches.filter(c => campaign.division.includes(c.division as any));
+    const targetCoaches = coaches.filter(c => campaign.division.includes(c.division as any));
     let sent = 0;
     let failed = 0;
     for (const coach of targetCoaches) {
