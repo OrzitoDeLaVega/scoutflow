@@ -2069,7 +2069,7 @@ function SettingsPage() {
                       <Btn variant="danger" size="sm" onClick={disconnectGmail}>Disconnect</Btn>
                     </div>
                   ) : (
-                    <Btn variant="primary" size="sm" onClick={() => setTab("email")}><Link2 size={11} /> Connect Gmail</Btn>
+                    <Chip variant="yellow">Not connected</Chip>
                   )}
                 </div>
                 {gmail && (
@@ -2083,7 +2083,7 @@ function SettingsPage() {
                   </div>
                 )}
                 {/* Gmail credentials form */}
-                <div className={cx("mt-4 pt-4 border-t border-white/6 space-y-3", !gmail && "hidden")}>
+                <div className="mt-4 pt-4 border-t border-white/6 space-y-3">
                   <Field label="Gmail Address">
                     <Input value={gmailUser} onChange={setGmailUser} placeholder="your.name@gmail.com" prefix="@" />
                   </Field>
@@ -2245,7 +2245,7 @@ function pushToast(msg: string, type: "success" | "error" = "success") {
 function ToastBar() {
   const [toast, setToast] = useState<ToastMsg | null>(null);
   const [hiding, setHiding] = useState(false);
-  _toast = (m) => { setToast(m); setHiding(false); };
+  useEffect(() => { _toast = (m) => { setToast(m); setHiding(false); }; return () => { _toast = null; }; }, []);
   useEffect(() => {
     if (!toast) return;
     const t = setTimeout(() => { setHiding(true); setTimeout(() => setToast(null), 300); }, 3500);
