@@ -83,13 +83,11 @@ interface PlayerProfile {
   nationality: string;
   currentTeam: string;
   gpa: string;
-  actScore: string;
   highlightUrl: string;
   fullFilmUrl: string;
   primaryGoal: string;
   languages: string[];
   passportCountry: string;
-  awards: string[];
   stats: string;
 }
 
@@ -106,32 +104,75 @@ const DEFAULT_PLAYER: PlayerProfile = {
   nationality: "France",
   currentTeam: "LMBC U18 France",
   gpa: "3.6",
-  actScore: "27",
   highlightUrl: "https://youtube.com/",
   fullFilmUrl: "https://youtube.com/",
   primaryGoal: "Earn a basketball scholarship in the United States.",
   languages: ["French", "English"],
   passportCountry: "France",
-  awards: ["French National U18 Championship Finalist", "MVP Regional Tournament 2024"],
   stats: "18.2 PPG · 7.4 APG · 3.8 RPG · 2.1 SPG · 42% 3P"
 };
 
+// ─── AUTH ──────────────────────────────────────────────────────────────────────
+
+interface Account { id: string; email: string; password: string; }
+
+function getAccounts(): Account[] {
+  try { return JSON.parse(localStorage.getItem("sf_accounts") || "[]"); } catch { return []; }
+}
+function saveAccounts(accounts: Account[]) { localStorage.setItem("sf_accounts", JSON.stringify(accounts)); }
+
+function storageKey(base: string): string {
+  const uid = localStorage.getItem("sf_session");
+  return uid ? `sf_${uid}_${base}` : `sf_${base}`;
+}
+
+function register(email: string, password: string): boolean {
+  const accounts = getAccounts();
+  if (accounts.find(a => a.email === email)) return false;
+  const id = crypto.randomUUID?.() || Date.now().toString(36) + Math.random().toString(36).slice(2);
+  accounts.push({ id, email, password });
+  saveAccounts(accounts);
+  localStorage.setItem("sf_session", id);
+  localStorage.setItem("sf_user_email", email);
+  return true;
+}
+
+function login(email: string, password: string): boolean {
+  const accounts = getAccounts();
+  const account = accounts.find(a => a.email === email && a.password === password);
+  if (!account) return false;
+  localStorage.setItem("sf_session", account.id);
+  localStorage.setItem("sf_user_email", email);
+  const pairs = [["sf_player","player"],["sf_template","template"],["sf_coaches","coaches"],["sf_tracking","tracking"],["sf_gmail_user","gmail_user"],["sf_gmail_pass","gmail_pass"]];
+  for (const [oldKey, base] of pairs) {
+    const newKey = storageKey(base);
+    if (localStorage.getItem(oldKey) && !localStorage.getItem(newKey)) localStorage.setItem(newKey, localStorage.getItem(oldKey)!);
+  }
+  return true;
+}
+
+function logout() { localStorage.removeItem("sf_session"); localStorage.removeItem("sf_user_email"); }
+
+function currentUserId(): string | null { return localStorage.getItem("sf_session"); }
+
+// ─── DATA LAYER ────────────────────────────────────────────────────────────────
+
 function getPlayer(): PlayerProfile {
-  try { const d = localStorage.getItem("sf_player"); if (d) return JSON.parse(d); } catch {}
+  try { const d = localStorage.getItem(storageKey("player")); if (d) return JSON.parse(d); } catch {}
   return DEFAULT_PLAYER;
 }
-function setPlayer(p: PlayerProfile) { localStorage.setItem("sf_player", JSON.stringify(p)); }
+function setPlayer(p: PlayerProfile) { localStorage.setItem(storageKey("player"), JSON.stringify(p)); }
 function getTemplate(): { subject: string; body: string } {
-  try { const d = localStorage.getItem("sf_template"); if (d) return JSON.parse(d); } catch {}
+  try { const d = localStorage.getItem(storageKey("template")); if (d) return JSON.parse(d); } catch {}
   return OUTREACH_TEMPLATE;
 }
-function setTemplate(subject: string, body: string) { localStorage.setItem("sf_template", JSON.stringify({ subject, body })); }
+function setTemplate(subject: string, body: string) { localStorage.setItem(storageKey("template"), JSON.stringify({ subject, body })); }
 
 interface TrackingEntry { id: string; coachId: string; coachName: string; school: string; timestamp: string; type: "sent" | "opened" | "replied" | "bounced"; subject: string; }
-function loadCoaches(): Coach[] { try { const d = localStorage.getItem("sf_coaches"); if (d) return JSON.parse(d); } catch {} return DEFAULT_COACHES; }
-function saveCoaches(c: Coach[]) { localStorage.setItem("sf_coaches", JSON.stringify(c)); }
-function addTracking(coach: Coach, type: TrackingEntry["type"], subject: string) { const log: TrackingEntry[] = JSON.parse(localStorage.getItem("sf_tracking") || "[]"); log.unshift({ id: Date.now().toString(), coachId: coach.id, coachName: coach.headCoach, school: coach.school, timestamp: new Date().toISOString(), type, subject }); localStorage.setItem("sf_tracking", JSON.stringify(log.slice(0, 500))); }
-function getTrackingLog(): TrackingEntry[] { try { const d = localStorage.getItem("sf_tracking"); if (d) return JSON.parse(d); } catch {} return []; }
+function loadCoaches(): Coach[] { try { const d = localStorage.getItem(storageKey("coaches")); if (d) return JSON.parse(d); } catch {} return DEFAULT_COACHES; }
+function saveCoaches(c: Coach[]) { localStorage.setItem(storageKey("coaches"), JSON.stringify(c)); }
+function addTracking(coach: Coach, type: TrackingEntry["type"], subject: string) { const log: TrackingEntry[] = JSON.parse(localStorage.getItem(storageKey("tracking")) || "[]"); log.unshift({ id: Date.now().toString(), coachId: coach.id, coachName: coach.headCoach, school: coach.school, timestamp: new Date().toISOString(), type, subject }); localStorage.setItem(storageKey("tracking"), JSON.stringify(log.slice(0, 500))); }
+function getTrackingLog(): TrackingEntry[] { try { const d = localStorage.getItem(storageKey("tracking")); if (d) return JSON.parse(d); } catch {} return []; }
 const DEFAULT_COACHES: Coach[] = [
   // NCAA D1
   { id: "d1-1", school: "Boston University", division: "NCAA D1", conference: "Patriot League", state: "MA", headCoach: "Joe Jones", assistants: ["Mike Quinn", "Al Paul", "Matt Brady", "Khalil Griffith", "Matt Bielenda"], email: "jjones11@bu.edu", phone: "(617) 358-0749", athleticsUrl: "https://goterriers.com", rosterSize: 14, internationalPlayers: 3, graduatingSeniors: 3, positionsNeeded: ["PG", "SG"], scholarshipLevel: "Full", stage: "Not Contacted", favorited: false, notes: "", region: "Northeast" },
@@ -475,7 +516,7 @@ function Sidebar({ page, setPage, open, onToggle, onMouseEnter, onMouseLeave }: 
 
 // ─── TOPBAR ───────────────────────────────────────────────────────────────────
 
-function TopBar({ title, children, onToggleSidebar }: { title: string; children?: React.ReactNode; onToggleSidebar?: () => void }) {
+function TopBar({ title, children, onToggleSidebar, onLogout }: { title: string; children?: React.ReactNode; onToggleSidebar?: () => void; onLogout?: () => void }) {
   return (
     <header className="h-14 flex items-center justify-between px-6 border-b border-white/6 bg-[#0b0b0f]/80 backdrop-blur-sm sticky top-0 z-20">
       <div className="flex items-center gap-3">
@@ -498,6 +539,7 @@ function TopBar({ title, children, onToggleSidebar }: { title: string; children?
         <div className="w-7 h-7 rounded-full bg-gradient-to-br from-violet-500/40 to-blue-500/20 border border-white/15 flex items-center justify-center">
           <span className="text-[10px] font-bold text-white">🇫🇷</span>
         </div>
+        {onLogout && <><span className="text-[10px] text-white/20 font-['JetBrains_Mono']">{localStorage.getItem("sf_user_email")}</span><button onClick={onLogout} className="text-[10px] text-white/30 hover:text-white/60 px-2 py-1 rounded-lg hover:bg-white/5 transition-colors font-['JetBrains_Mono']">Logout</button></>}
       </div>
     </header>
   );
@@ -2020,9 +2062,6 @@ function ProfilePage({ onProfileSave }: { onProfileSave?: () => void }) {
               <Field label="GPA">
                 <Input value={profile.gpa} onChange={upd("gpa")} placeholder="e.g. 3.6" />
               </Field>
-              <Field label="ACT Score">
-                <Input value={profile.actScore} onChange={upd("actScore")} placeholder="e.g. 27" />
-              </Field>
             </div>
           </Card>
 
@@ -2033,21 +2072,6 @@ function ProfilePage({ onProfileSave }: { onProfileSave?: () => void }) {
             </Field>
           </Card>
 
-          <Card className="p-5">
-            <div className="text-[10px] font-semibold text-white/25 uppercase tracking-[0.09em] mb-4">Awards & Recognition</div>
-            <div className="space-y-2 mb-3">
-              {profile.awards.map((a, i) => (
-                <div key={i} className="flex items-center gap-2 px-3 py-2 bg-white/3 border border-white/5 rounded-lg">
-                  <Trophy size={11} className="text-yellow-400/60 flex-shrink-0" />
-                  <span className="text-xs text-white/65 flex-1">{a}</span>
-                  <button className="text-white/15 hover:text-white/40 transition-colors">
-                    <X size={10} />
-                  </button>
-                </div>
-              ))}
-            </div>
-            <Btn variant="subtle" size="sm"><Plus size={11} /> Add Award</Btn>
-          </Card>
         </div>
       )}
 
@@ -2110,10 +2134,6 @@ function ProfilePage({ onProfileSave }: { onProfileSave?: () => void }) {
               <div>
                 <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1.5">Season Stats</div>
                 <p className="text-sm font-medium text-gray-700">{profile.stats}</p>
-              </div>
-              <div>
-                <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1.5">Awards</div>
-                {profile.awards.map((a, i) => <p key={i} className="text-sm text-gray-600">· {a}</p>)}
               </div>
               <div className="grid grid-cols-2 gap-4 pt-2 border-t border-gray-100">
                 <div>
@@ -2388,14 +2408,14 @@ type ToastMsg = { msg: string; type: "success" | "error" };
 function getEmailConfig(): EmailConfig {
   if (typeof window === "undefined") return { user: "", pass: "" };
   return {
-    user: localStorage.getItem("sf_gmail_user") || "",
-    pass: localStorage.getItem("sf_gmail_pass") || "",
+    user: localStorage.getItem(storageKey("gmail_user")) || "",
+    pass: localStorage.getItem(storageKey("gmail_pass")) || "",
   };
 }
 
 function setEmailConfig(user: string, pass: string) {
-  localStorage.setItem("sf_gmail_user", user);
-  localStorage.setItem("sf_gmail_pass", pass);
+  localStorage.setItem(storageKey("gmail_user"), user);
+  localStorage.setItem(storageKey("gmail_pass"), pass);
 }
 
 async function sendEmail(to: string, subject: string, html: string): Promise<{ success: boolean; error?: string }> {
@@ -2542,7 +2562,74 @@ const PAGE_TITLES: Record<Page, string> = {
   settings: "Settings",
 };
 
+// ─── LOGIN PAGE ────────────────────────────────────────────────────────────────
+
+function LoginPage({ onLogin }: { onLogin: () => void }) {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [isRegister, setIsRegister] = useState(false);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+    await new Promise(r => setTimeout(r, 300));
+    setLoading(false);
+    if (isRegister) {
+      const ok = register(email, password);
+      if (!ok) { setError("An account with this email already exists"); return; }
+    } else {
+      const ok = login(email, password);
+      if (!ok) { setError("Invalid email or password"); return; }
+    }
+    onLogin();
+  };
+  return (
+    <div className="min-h-screen bg-[#0b0b0f] text-[#f2f2f7] flex items-center justify-center p-4" style={{ fontFamily: "'Inter', sans-serif" }}>
+      <div className="fixed inset-0 pointer-events-none">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-violet-600/4 rounded-full blur-[120px]" />
+        <div className="absolute bottom-0 right-0 w-[400px] h-[300px] bg-blue-600/3 rounded-full blur-[100px]" />
+      </div>
+      <div className="relative w-full max-w-sm">
+        <div className="flex items-center gap-3 justify-center mb-8">
+          <div className="w-8 h-8 rounded-md bg-white flex items-center justify-center"><Target size={16} className="text-[#0b0b0f]" /></div>
+          <span className="text-xl font-bold text-white font-['Plus_Jakarta_Sans']">ScoutFlow</span>
+        </div>
+        <form onSubmit={handleSubmit} className="space-y-4 bg-[#111118] border border-white/10 rounded-2xl p-6 shadow-2xl">
+          <h2 className="text-base font-semibold text-white font-['Plus_Jakarta_Sans']">{isRegister ? "Create Account" : "Sign In"}</h2>
+          <p className="text-xs text-white/40 -mt-2">{isRegister ? "Create your recruiting CRM account" : "Sign in to your recruiting CRM"}</p>
+          <div>
+            <label className="block text-xs text-white/40 mb-1">Email</label>
+            <input value={email} onChange={e => setEmail(e.target.value)} type="email" required placeholder="you@example.com"
+              className="w-full bg-white/4 border border-white/8 rounded-lg px-3 py-2 text-sm text-white placeholder-white/25 outline-none focus:border-white/22 transition-colors" />
+          </div>
+          <div>
+            <label className="block text-xs text-white/40 mb-1">Password</label>
+            <input value={password} onChange={e => setPassword(e.target.value)} type="password" required placeholder="At least 6 characters" minLength={6}
+              className="w-full bg-white/4 border border-white/8 rounded-lg px-3 py-2 text-sm text-white placeholder-white/25 outline-none focus:border-white/22 transition-colors" />
+          </div>
+          {error && <div className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</div>}
+          <button type="submit" disabled={loading}
+            className="w-full bg-white text-[#0b0b0f] rounded-lg py-2.5 text-sm font-semibold hover:bg-white/90 active:scale-[0.98] transition-all disabled:opacity-50">
+            {loading ? "Please wait..." : isRegister ? "Create Account" : "Sign In"}
+          </button>
+          <div className="text-center text-xs text-white/30">
+            {isRegister ? "Already have an account?" : "Don't have an account?"}{" "}
+            <button type="button" onClick={() => { setIsRegister(!isRegister); setError(""); }} className="text-violet-400 hover:text-violet-300 transition-colors underline underline-offset-2">
+              {isRegister ? "Sign in" : "Register"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ─── APP ───────────────────────────────────────────────────────────────────────
+
 export default function App() {
+  const [loggedIn, setLoggedIn] = useState(() => !!currentUserId());
   const [page, setPage] = useState<Page>("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [profileVersion, setProfileVersion] = useState(0);
@@ -2566,6 +2653,8 @@ export default function App() {
   const cfg = getEmailConfig();
   const gmailConfigured = !!(cfg.user && cfg.pass);
 
+  if (!loggedIn) return <LoginPage onLogin={() => { setLoggedIn(true); setCoaches(loadCoaches()); setEmailConfigState(getEmailConfig()); }} />;
+
   return (
     <div className="min-h-screen bg-[#0b0b0f] text-[#f2f2f7] flex" style={{ fontFamily: "'Inter', sans-serif" }}>
       {/* Ambient background */}
@@ -2580,7 +2669,7 @@ export default function App() {
       <Sidebar key={profileVersion} page={page} setPage={setPage} open={sidebarOpen} onToggle={() => setSidebarOpen(false)} onMouseEnter={openSidebar} onMouseLeave={closeSidebar} />
 
       <div className={`flex-1 flex flex-col min-h-screen transition-all duration-300 ${sidebarOpen ? 'ml-[216px]' : 'ml-0'}`}>
-        <TopBar title={PAGE_TITLES[page]} onToggleSidebar={openSidebar} />
+        <TopBar title={PAGE_TITLES[page]} onToggleSidebar={openSidebar} onLogout={() => { logout(); setLoggedIn(false); }} />
         <main className={cx("flex-1 overflow-hidden", page === "pipeline" ? "overflow-auto" : "overflow-y-auto")}>
           {page === "dashboard" && <DashboardPage key={trackingVersion} setPage={setPage} coaches={coaches} trackingVersion={trackingVersion} />}
           {page === "coaches" && <CoachesPage onSendEmail={setEmailModalCoach} coaches={coaches} />}
