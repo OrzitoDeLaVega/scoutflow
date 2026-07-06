@@ -379,16 +379,21 @@ function Sidebar({ page, setPage, open, onToggle }: { page: Page; setPage: (p: P
   return (
     <>
       {open && <div className="fixed inset-0 bg-black/50 z-30 lg:hidden" onClick={onToggle} />}
-      <aside className={`fixed inset-y-0 left-0 w-[216px] flex flex-col border-r border-white/6 bg-[#080810]/60 backdrop-blur-xl z-40 transition-transform duration-300 ${open ? 'translate-x-0' : '-translate-x-full'}`}>
+      <aside className={`fixed inset-y-0 left-0 w-[216px] flex flex-col border-r border-white/6 bg-[#080810]/90 backdrop-blur-xl z-40 transition-transform duration-300 ${open ? 'translate-x-0' : '-translate-x-full'}`}>
       {/* Brand */}
-      <div className="h-14 flex items-center px-4 border-b border-white/6 gap-3">
-        <div className="w-6 h-6 rounded-md bg-white flex items-center justify-center flex-shrink-0">
-          <Target size={12} className="text-[#0b0b0f]" />
+      <div className="h-14 flex items-center justify-between px-4 border-b border-white/6">
+        <div className="flex items-center gap-3">
+          <div className="w-6 h-6 rounded-md bg-white flex items-center justify-center flex-shrink-0">
+            <Target size={12} className="text-[#0b0b0f]" />
+          </div>
+          <div className="flex flex-col">
+            <span className="text-[13px] font-bold text-white font-['Plus_Jakarta_Sans'] leading-none">ScoutFlow</span>
+            <span className="text-[9px] text-white/25 font-['JetBrains_Mono'] mt-0.5">AI · v2.0</span>
+          </div>
         </div>
-        <div className="flex flex-col">
-          <span className="text-[13px] font-bold text-white font-['Plus_Jakarta_Sans'] leading-none">ScoutFlow</span>
-          <span className="text-[9px] text-white/25 font-['JetBrains_Mono'] mt-0.5">AI · v2.0</span>
-        </div>
+        <button onClick={onToggle} className="w-7 h-7 flex items-center justify-center text-white/40 hover:text-white rounded-lg hover:bg-white/10 transition-colors flex-shrink-0" title="Close sidebar">
+          <X size={14} />
+        </button>
       </div>
 
       {/* Offer alert */}
@@ -459,8 +464,8 @@ function TopBar({ title, children, onToggleSidebar }: { title: string; children?
   return (
     <header className="h-14 flex items-center justify-between px-6 border-b border-white/6 bg-[#0b0b0f]/80 backdrop-blur-sm sticky top-0 z-20">
       <div className="flex items-center gap-3">
-        <button onClick={onToggleSidebar} className="w-7 h-7 flex items-center justify-center text-white/35 hover:text-white/70 rounded-lg hover:bg-white/5 transition-colors flex-shrink-0" title="Toggle sidebar">
-          <Menu size={14} />
+        <button onClick={onToggleSidebar} className="w-8 h-8 flex items-center justify-center text-white/60 hover:text-white border border-white/10 hover:border-white/25 rounded-lg hover:bg-white/10 transition-colors flex-shrink-0" title="Toggle sidebar">
+          <Menu size={16} />
         </button>
         <h2 className="text-sm font-semibold text-white">{title}</h2>
         {children}
