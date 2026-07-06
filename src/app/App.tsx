@@ -4,12 +4,12 @@ import {
   BarChart3, Settings, Search, Bell, Star, StarOff, Filter,
   Download, Upload, Plus, Send, Eye, MousePointerClick, MessageSquare,
   TrendingUp, Clock, CheckCircle, XCircle, AlertCircle, MoreHorizontal,
-  Play, Pause, RefreshCw, ChevronDown, ChevronRight, ArrowUpRight,
+  Play, RefreshCw, ChevronDown, ChevronRight, ArrowUpRight,
   Globe, Phone, ExternalLink, Copy, Trash2, Edit3, X, Check,
   Activity, Target, Shield, Key, Palette, Database, Link2,
-  Video, User, Cpu, Info, SlidersHorizontal, Layers, Inbox,
+  Video, User, Cpu, Info, SlidersHorizontal, Inbox,
   Calendar, MapPin, GraduationCap, Trophy, Zap, BookOpen, Archive,
-  Command, ChevronUp, ArrowRight, Dot, Circle, Hash, Menu
+  Command, ChevronUp, Dot, Circle, Hash, Menu
 } from "lucide-react";
 import {
   AreaChart, Area, BarChart, Bar, LineChart, Line,
@@ -18,13 +18,11 @@ import {
 
 // ─── TYPES ────────────────────────────────────────────────────────────────────
 
-type Page = "dashboard" | "coaches" | "outreach" | "campaigns" | "pipeline" | "analytics" | "profile" | "settings";
+type Page = "dashboard" | "coaches" | "outreach" | "broadcast" | "pipeline" | "analytics" | "profile" | "settings";
 
 type Division = "NCAA D1" | "NCAA D2" | "NCAA D3" | "NAIA" | "NJCAA D1" | "NJCAA D2" | "NJCAA D3";
 
 type CRMStage = "Not Contacted" | "Draft Ready" | "Sent" | "Opened" | "Replied" | "Interested" | "Call Scheduled" | "Offer" | "Committed";
-
-type CampaignStatus = "active" | "paused" | "draft" | "completed";
 
 interface StaffMember {
   name: string;
@@ -59,25 +57,6 @@ interface Coach {
   notes: string;
   ranking?: number;
   region: string;
-}
-
-interface Campaign {
-  id: string;
-  name: string;
-  status: CampaignStatus;
-  division: Division[];
-  programsTargeted: number;
-  sent: number;
-  opened: number;
-  replied: number;
-  interested: number;
-  createdAt: string;
-  dailyLimit: number;
-  sentToday: number;
-  scheduledTime: string;
-  templateName: string;
-  reviewRequired: boolean;
-  pendingReview: number;
 }
 
 interface PlayerProfile {
@@ -975,13 +954,6 @@ const DEFAULT_COACHES: Coach[] = [
   },
 ];
 
-const CAMPAIGNS: Campaign[] = [
-  { id: "c1", name: "WCC + Patriot League International Push", status: "active", division: ["NCAA D1", "NCAA D2"], programsTargeted: 6, sent: 4, opened: 3, replied: 1, interested: 1, createdAt: "2025-06-15", dailyLimit: 3, sentToday: 1, scheduledTime: "09:00 AM PST", templateName: "International PG — Class 2028", reviewRequired: true, pendingReview: 2 },
-  { id: "c2", name: "NAIA Scholarship Hunt", status: "active", division: ["NAIA"], programsTargeted: 7, sent: 5, opened: 3, replied: 2, interested: 1, createdAt: "2025-06-18", dailyLimit: 3, sentToday: 1, scheduledTime: "10:00 AM CST", templateName: "NAIA Personalized Outreach", reviewRequired: true, pendingReview: 2 },
-  { id: "c3", name: "JUCO D1 Full Scholarship", status: "paused", division: ["NJCAA D1"], programsTargeted: 3, sent: 2, opened: 1, replied: 1, interested: 0, createdAt: "2025-06-05", dailyLimit: 3, sentToday: 0, scheduledTime: "11:00 AM CST", templateName: "JUCO Bridge Program Email", reviewRequired: false, pendingReview: 0 },
-  { id: "c4", name: "NCAA D1 Patriot League Push", status: "draft", division: ["NCAA D1"], programsTargeted: 5, sent: 0, opened: 0, replied: 0, interested: 0, createdAt: "2025-06-25", dailyLimit: 3, sentToday: 0, scheduledTime: "09:00 AM EST", templateName: "D1 Recruiting Introduction", reviewRequired: true, pendingReview: 0 },
-];
-
 const OUTREACH_TEMPLATE = {
   subject: "{{PlayerName}} | {{Position}} | {{GraduationYear}} | Seeking {{Division}} Scholarship",
   body: `Dear Coach {{CoachName}},
@@ -1198,7 +1170,7 @@ const NAV_ITEMS = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
   { id: "coaches", label: "Coach Database", icon: Users, count: loadCoaches().length },
   { id: "outreach", label: "Outreach", icon: Mail },
-  { id: "campaigns", label: "Campaigns", icon: Layers, count: CAMPAIGNS.filter(c => c.status === "active").length },
+  { id: "broadcast", label: "Broadcast", icon: Zap },
   { id: "pipeline", label: "Pipeline", icon: Kanban },
   { id: "analytics", label: "Analytics", icon: BarChart3 },
 ] as const;
@@ -1369,7 +1341,7 @@ function DashboardPage({ setPage, coaches, trackingVersion }: { setPage: (p: Pag
         </div>
         <div className="flex gap-2">
           <Btn variant="outline" size="sm" onClick={() => setPage("coaches")}><Users size={12} /> Browse Programs</Btn>
-          <Btn variant="primary" size="sm" onClick={() => setPage("campaigns")}><Zap size={12} /> Run Campaign</Btn>
+          <Btn variant="primary" size="sm" onClick={() => setPage("broadcast")}><Zap size={12} /> Contact All</Btn>
         </div>
       </div>
 
@@ -1439,7 +1411,7 @@ function DashboardPage({ setPage, coaches, trackingVersion }: { setPage: (p: Pag
         </Card>
       </div>
 
-      {/* Pipeline + Campaigns preview */}
+      {/* Pipeline + Broadcast preview */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <Card className="p-5">
           <div className="flex items-center justify-between mb-4">
@@ -1466,33 +1438,34 @@ function DashboardPage({ setPage, coaches, trackingVersion }: { setPage: (p: Pag
 
         <Card className="p-5">
           <div className="flex items-center justify-between mb-4">
-            <div className="text-sm font-semibold text-white">Active Campaigns</div>
-            <Btn variant="ghost" size="sm" onClick={() => setPage("campaigns")}>Manage <ChevronRight size={11} /></Btn>
+            <div className="text-sm font-semibold text-white">Broadcast</div>
+            <Btn variant="ghost" size="sm" onClick={() => setPage("broadcast")}>Manage <ChevronRight size={11} /></Btn>
           </div>
-          <div className="space-y-3">
-            {CAMPAIGNS.filter(c => c.status === "active").map(c => {
-              const prog = c.programsTargeted > 0 ? (c.sent / c.programsTargeted) * 100 : 0;
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-white/50">Last contact all</span>
+              <span className="text-white/80 font-medium font-['JetBrains_Mono']">{(() => { const d = getContactAllLast(); return d ? new Date(d).toLocaleDateString() : "Never"; })()}</span>
+            </div>
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-white/50">Cycle</span>
+              <span className="text-white/80 font-medium font-['JetBrains_Mono']">#{getContactAllCycle()}</span>
+            </div>
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-white/50">Programs in DB</span>
+              <span className="text-white/80 font-medium font-['JetBrains_Mono']">{coaches.length}</span>
+            </div>
+            {(() => {
+              const last = getContactAllLast();
+              if (!last) return null;
+              const daysSince = Math.floor((Date.now() - new Date(last).getTime()) / 86400000);
+              const remaining = Math.max(0, 5 - daysSince);
               return (
-                <div key={c.id} className="p-3 rounded-lg bg-white/3 border border-white/5">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-medium text-white">{c.name}</span>
-                    <Chip variant="green" size="xs">Active</Chip>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1 h-1 bg-white/6 rounded-full overflow-hidden">
-                      <div className="h-full bg-white/35 rounded-full" style={{ width: `${prog}%` }} />
-                    </div>
-                    <span className="text-[10px] font-['JetBrains_Mono'] text-white/30">{c.sent}/{c.programsTargeted}</span>
-                  </div>
-                  {c.pendingReview > 0 && (
-                    <div className="flex items-center gap-1.5 mt-2 text-[10px] text-yellow-400/80">
-                      <AlertCircle size={10} />
-                      {c.pendingReview} drafts awaiting your review
-                    </div>
-                  )}
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-white/50">Next auto-send</span>
+                  <span className={cx("font-medium font-['JetBrains_Mono']", remaining === 0 ? "text-yellow-400" : "text-white/80")}>{remaining === 0 ? "Due now!" : `${remaining} days`}</span>
                 </div>
               );
-            })}
+            })()}
           </div>
         </Card>
       </div>
@@ -2227,7 +2200,7 @@ function OutreachPage() {
   );
 }
 
-// ─── CAMPAIGNS ────────────────────────────────────────────────────────────────
+// ─── BROADCAST ────────────────────────────────────────────────────────────────
 
 const delay = (ms: number) => new Promise(r => setTimeout(r, ms));
 const INTROS = [
@@ -2243,64 +2216,43 @@ const INTROS = [
   "I wanted to express my interest in your program",
 ];
 
-function CampaignsPage({ onSendEmail, coaches, onEmailSent }: { onSendEmail?: (c: Coach) => void; coaches: Coach[]; onEmailSent?: (coachId: string, subject: string) => void }) {
-  const [campaigns, setCampaigns] = useState(CAMPAIGNS);
-  const [sendingId, setSendingId] = useState<string | null>(null);
-  const [reviewCampaign, setReviewCampaign] = useState<Campaign | null>(null);
-  const [reviewIndex, setReviewIndex] = useState(0);
-  const [sendingReview, setSendingReview] = useState(false);
-  const targetCoaches = (c: Campaign) => coaches.filter(cf => c.division.includes(cf.division as any));
-  const coachName = (coach: Coach) => { const s = coach.staff.find(st => st.email); return s ? s.name.split(" ").pop() || s.name : coach.headCoach.split(" ").pop() || coach.headCoach; };
-  const resolveSubject = (c: Campaign, coach: Coach) => getTemplate().subject
-    .replace(/\{\{PlayerName\}\}/g, getPlayer().name).replace(/\{\{Position\}\}/g, getPlayer().position)
-    .replace(/\{\{GraduationYear\}\}/g, getPlayer().graduationClass).replace(/\{\{Division\}\}/g, coach.division)
-    .replace(/\{\{CoachName\}\}/g, coachName(coach)).replace(/\{\{School\}\}/g, coach.school);
-  const resolveBody = (coach: Coach) => getTemplate().body
-    .replace(/\{\{PlayerName\}\}/g, getPlayer().name).replace(/\{\{Position\}\}/g, getPlayer().position)
-    .replace(/\{\{Height\}\}/g, getPlayer().height).replace(/\{\{HeightCm\}\}/g, getPlayer().heightCm)
-    .replace(/\{\{Weight\}\}/g, getPlayer().weight).replace(/\{\{WeightKg\}\}/g, getPlayer().weightKg)
-    .replace(/\{\{GraduationYear\}\}/g, getPlayer().graduationClass).replace(/\{\{Country\}\}/g, getPlayer().nationality)
-    .replace(/\{\{CurrentTeam\}\}/g, getPlayer().currentTeam).replace(/\{\{GPA\}\}/g, getPlayer().gpa)
-    .replace(/\{\{Stats\}\}/g, getPlayer().stats)
-    .replace(/\{\{HighlightUrl\}\}/g, getPlayer().highlightUrl).replace(/\{\{FilmUrl\}\}/g, getPlayer().fullFilmUrl)
-    .replace(/\{\{CoachName\}\}/g, coachName(coach)).replace(/\{\{School\}\}/g, coach.school)
-    .replace(/\{\{Conference\}\}/g, coach.conference).replace(/\{\{Division\}\}/g, coach.division);
+const getContactAllLast = () => localStorage.getItem("sf_contactAll_last");
+const setContactAllLast = (v: string) => localStorage.setItem("sf_contactAll_last", v);
+const getContactAllCycle = () => parseInt(localStorage.getItem("sf_contactAll_cycle") || "0", 10);
+const setContactAllCycle = (v: number) => localStorage.setItem("sf_contactAll_cycle", String(v));
 
-  const toggleStatus = (id: string) => {
-    setCampaigns(prev => prev.map(c => c.id === id
-      ? { ...c, status: c.status === "active" ? "paused" : "active" }
-      : c));
-  };
+function BroadcastPage({ coaches, onEmailSent }: { coaches: Coach[]; onEmailSent?: (coachId: string, subject: string) => void }) {
+  const [sending, setSending] = useState(false);
+  const [progress, setProgress] = useState({ current: 0, total: 0, sent: 0, failed: 0 });
+  const [lastResult, setLastResult] = useState<{ date: string; sent: number; failed: number } | null>(() => {
+    const d = getContactAllLast(); return d ? { date: d, sent: 0, failed: 0 } : null;
+  });
+  const [recentLog, setRecentLog] = useState<{ school: string; status: "sent" | "failed" }[]>([]);
+  const abortRef = useRef(false);
 
-  const statusChip = (s: CampaignStatus) => {
-    if (s === "active") return <Chip variant="green">Active</Chip>;
-    if (s === "paused") return <Chip variant="yellow">Paused</Chip>;
-    if (s === "draft") return <Chip variant="ghost">Draft</Chip>;
-    return <Chip variant="blue">Completed</Chip>;
-  };
-
-  const totalPending = campaigns.reduce((s, c) => s + (c.reviewRequired ? c.pendingReview : 0), 0);
-
-  const runCampaign = async (campaign: Campaign) => {
-    if (campaign.reviewRequired) { setReviewCampaign(campaign); setReviewIndex(0); setCampaigns(prev => prev.map(pc => pc.id === campaign.id ? { ...pc, pendingReview: targetCoaches(campaign).filter(cf => getStaffEmails(cf)).length } : pc)); return; }
-    setSendingId(campaign.id);
-    const targets = coaches.filter(c => campaign.division.includes(c.division as any));
-    const sentIds = new Set<string>();
-    let sent = 0;
-    let failed = 0;
-    let variation = 0;
-    for (const coach of targets) {
-      if (sentIds.has(coach.id)) continue;
+  const handleContactAll = async () => {
+    const targets = coaches.filter(c => getStaffEmails(c));
+    if (targets.length === 0) { pushToast("No coaches with email addresses found.", "error"); return; }
+    setSending(true);
+    setRecentLog([]);
+    setProgress({ current: 0, total: targets.length, sent: 0, failed: 0 });
+    abortRef.current = false;
+    const cycle = getContactAllCycle();
+    let variation = cycle * targets.length;
+    let sentCount = 0;
+    let failedCount = 0;
+    for (let i = 0; i < targets.length; i++) {
+      if (abortRef.current) break;
+      const coach = targets[i];
       const allEmails = getStaffEmails(coach);
       if (!allEmails) continue;
-      sentIds.add(coach.id);
       variation++;
-      const tpl = getTemplate();
+      setProgress(p => ({ ...p, current: i + 1 }));
       const intro = INTROS[variation % INTROS.length];
-      const introPrefix = variation > 1 ? `[${variation}nd outreach] ` : "";
+      const tpl = getTemplate();
       const firstStaff = coach.staff.find(s => s.email);
       const coachName = firstStaff?.name || coach.headCoach;
-      const subject = introPrefix + tpl.subject
+      const subject = (variation > 1 ? `[Follow-up ${variation}] ` : "") + tpl.subject
         .replace(/\{\{PlayerName\}\}/g, getPlayer().name)
         .replace(/\{\{Position\}\}/g, getPlayer().position)
         .replace(/\{\{GraduationYear\}\}/g, getPlayer().graduationClass)
@@ -2328,192 +2280,102 @@ function CampaignsPage({ onSendEmail, coaches, onEmailSent }: { onSendEmail?: (c
       if (variation > 1) body = `${intro}\n\n${body}`;
       const html = body.replace(/\n/g, "<br>");
       const { success } = await sendEmail(allEmails, subject, html);
-      if (success) { sent++; onEmailSent?.(coach.id, subject); setCampaigns(prev => prev.map(cc => cc.id === campaign.id ? { ...cc, sent: cc.sent + 1 } : cc)); }
-      else failed++;
-      if (targets.length > 1) await delay(45000 + Math.random() * 45000);
+      if (success) { sentCount++; onEmailSent?.(coach.id, subject); setProgress(p => ({ ...p, sent: p.sent + 1 })); setRecentLog(prev => [{ school: coach.school, status: "sent" }, ...prev].slice(0, 20)); }
+      else { failedCount++; setProgress(p => ({ ...p, failed: p.failed + 1 })); setRecentLog(prev => [{ school: coach.school, status: "failed" }, ...prev].slice(0, 20)); }
+      if (i < targets.length - 1 && !abortRef.current) await delay(45000 + Math.random() * 45000);
     }
-    setSendingId(null);
-    pushToast(`Campaign "${campaign.name}" complete — ${sent} sent, ${failed} failed`, failed > 0 ? "error" : "success");
-    setCampaigns(prev => prev.map(c => c.id === campaign.id ? { ...c, status: "paused" as CampaignStatus } : c));
+    setContactAllLast(new Date().toISOString());
+    setContactAllCycle(cycle + 1);
+    setSending(false);
+    setLastResult({ date: new Date().toLocaleString(), sent: sentCount, failed: failedCount });
+    pushToast(`Broadcast complete — ${sentCount} sent, ${failedCount} failed`, failedCount > 0 ? "warning" : "success");
   };
 
+  const cancel = () => { abortRef.current = true; };
+
+  const lastDate = getContactAllLast();
+  const daysSince = lastDate ? Math.floor((Date.now() - new Date(lastDate).getTime()) / 86400000) : null;
+  const autoDue = lastDate ? daysSince! >= 5 : false;
+
   return (
-    <div className="p-6 max-w-[1100px] mx-auto space-y-5">
-      {/* Review banner */}
-      {totalPending > 0 && (
-        <div id="pending-review" className="flex items-center justify-between px-4 py-3 rounded-xl bg-yellow-500/8 border border-yellow-500/20">
+    <div className="p-6 max-w-[900px] mx-auto space-y-5">
+      {/* Auto-send banner */}
+      {autoDue && !sending && (
+        <div className="flex items-center justify-between px-4 py-3 rounded-xl bg-blue-500/8 border border-blue-500/20">
           <div className="flex items-center gap-3">
-            <AlertCircle size={14} className="text-yellow-400 flex-shrink-0" />
+            <Send size={14} className="text-blue-400 flex-shrink-0" />
             <div>
-              <span className="text-sm font-medium text-yellow-400">{totalPending} email drafts require your review before sending</span>
-              <p className="text-xs text-yellow-400/60 mt-0.5">Campaigns are paused until you approve each draft. Nothing sends automatically.</p>
+              <span className="text-sm font-medium text-blue-400">Time for your 5-day broadcast!</span>
+              <p className="text-xs text-blue-400/60 mt-0.5">{daysSince} days since last contact — hit Contact All below to send follow-ups.</p>
             </div>
           </div>
-          <Btn variant="outline" size="sm" onClick={() => document.getElementById("pending-review")?.scrollIntoView({ behavior: "smooth", block: "start" })}>Review Drafts <ChevronRight size={11} /></Btn>
         </div>
       )}
 
-      <PageHeader title="Campaigns"
-        actions={<>
-          <Btn variant="outline" size="sm"><Filter size={12} /> Filter</Btn>
-          <Btn variant="primary" size="sm"><Plus size={12} /> New Campaign</Btn>
-        </>}
-      />
+      <PageHeader title="Broadcast" subtitle="Send a personalized email to every program in your database." />
 
-      <div className="space-y-3">
-        {campaigns.map(c => {
-          const prog = c.programsTargeted > 0 ? (c.sent / c.programsTargeted) * 100 : 0;
-          return (
-            <Card key={c.id} hover className="overflow-hidden">
-              <div className="p-5">
-                <div className="flex items-start justify-between gap-4 mb-4">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2.5 mb-1.5">
-                      <h3 className="text-sm font-semibold text-white">{c.name}</h3>
-                      {statusChip(c.status)}
-                      {c.reviewRequired && <Chip variant="yellow" size="xs">Review required</Chip>}
-                    </div>
-                    <div className="flex flex-wrap items-center gap-3 text-[11px] text-white/30 font-['JetBrains_Mono']">
-                      <span>Template: {c.templateName}</span>
-                      <span>·</span>
-                      <span>Sends at {c.scheduledTime}</span>
-                      <span>·</span>
-                      <span>Limit: {c.dailyLimit}/day</span>
-                      {c.status === "active" && <><span>·</span><span className="text-green-400">{c.sentToday} sent today</span></>}
-                    </div>
-                    <div className="flex gap-1.5 mt-2 flex-wrap">
-                      {c.division.map(d => <Chip key={d} variant="ghost" size="xs">{d}</Chip>)}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1.5 flex-shrink-0">
-                    {c.status === "draft" && !c.reviewRequired && (
-                      <Btn variant="primary" size="sm" onClick={() => runCampaign(c)} disabled={sendingId === c.id}>
-                        {sendingId === c.id ? <><RefreshCw size={12} className="animate-spin" /> Sending...</> : <><Send size={12} /> Run Campaign</>}
-                      </Btn>
-                    )}
-                    {c.status === "draft" && c.reviewRequired && (
-                      <Btn variant="primary" size="sm" onClick={() => { setReviewCampaign(c); setReviewIndex(0); setCampaigns(prev => prev.map(pc => pc.id === c.id ? { ...pc, pendingReview: targetCoaches(c).filter(cf => getStaffEmails(cf)).length } : pc)); }}>
-                        <Send size={12} /> Review & Send
-                      </Btn>
-                    )}
-                    {(c.status === "active" || c.status === "paused") && (
-                      <Btn variant="subtle" size="sm" onClick={() => toggleStatus(c.id)}>
-                        {c.status === "active" ? <Pause size={12} /> : <Play size={12} />}
-                        {c.status === "active" ? "Pause" : "Resume"}
-                      </Btn>
-                    )}
-                    <button className="w-8 h-8 flex items-center justify-center rounded-lg text-white/30 hover:text-white/60 hover:bg-white/5 transition-all">
-                      <MoreHorizontal size={14} />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Progress bar */}
-                <div className="mb-4">
-                  <div className="flex justify-between text-[10px] text-white/30 mb-1.5">
-                    <span>{c.sent} sent of {c.programsTargeted} programs</span>
-                    <span className="font-['JetBrains_Mono']">{Math.round(prog)}%</span>
-                  </div>
-                  <div className="h-1 bg-white/6 rounded-full overflow-hidden">
-                    <div className="h-full bg-white/35 rounded-full transition-all duration-500" style={{ width: `${prog}%` }} />
-                  </div>
-                </div>
-
-                {/* Stats row */}
-                <div className="grid grid-cols-5 gap-2">
-                  {[
-                    { icon: Send, label: "Sent", val: c.sent, color: "text-white/60" },
-                    { icon: Eye, label: "Opened", val: `${pct(c.opened, c.sent)}`, color: "text-blue-400" },
-                    { icon: MessageSquare, label: "Replied", val: `${pct(c.replied, c.sent)}`, color: "text-yellow-400" },
-                    { icon: TrendingUp, label: "Interested", val: c.interested, color: "text-emerald-400" },
-                    { icon: Clock, label: "Pending Review", val: c.pendingReview, color: c.pendingReview > 0 ? "text-yellow-400" : "text-white/25" },
-                  ].map(({ icon: Icon, label, val, color }) => (
-                    <div key={label} className="flex items-center gap-2 p-2.5 rounded-lg bg-white/2 border border-white/4">
-                      <Icon size={11} className={color} />
-                      <div>
-                        <div className={cx("text-sm font-bold font-['Plus_Jakarta_Sans']", color)}>{val}</div>
-                        <div className="text-[9px] text-white/25 uppercase tracking-wide">{label}</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Review queue */}
-              {c.pendingReview > 0 && (
-                <>
-                  <Divider />
-                  <div className="px-5 py-3 flex items-center justify-between bg-yellow-500/4">
-                    <div className="flex items-center gap-2 text-xs text-yellow-400/80">
-                      <AlertCircle size={12} />
-                      {c.pendingReview} drafts waiting for your approval before they are sent
-                    </div>
-                    <Btn variant="outline" size="xs" onClick={() => { setReviewCampaign(c); setReviewIndex(0); setCampaigns(prev => prev.map(pc => pc.id === c.id ? { ...pc, pendingReview: targetCoaches(c).filter(cf => getStaffEmails(cf)).length } : pc)); }}>Review & Approve <ArrowRight size={10} /></Btn>
-                  </div>
-                </>
-              )}
-            </Card>
-          );
-        })}
+      {/* Status cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <MetricCard label="Programs in DB" value={coaches.length} sub={`${coaches.filter(c => getStaffEmails(c)).length} with emails`} />
+        <MetricCard label="Last Contact All" value={lastDate ? new Date(lastDate).toLocaleDateString() : "Never"} sub={lastDate ? `${daysSince} days ago` : "No broadcasts yet"} />
+        <MetricCard label="Current Cycle" value={`#${getContactAllCycle()}`} sub={autoDue ? "Due now!" : lastDate ? `Next in ${5 - daysSince!} days` : "Start cycle 1"} color={autoDue ? "text-yellow-400" : ""} />
+        <MetricCard label="Total Sent" value={coaches.filter(c => c.stage !== "Not Contacted").length} sub="Programs contacted" color="text-blue-400" />
       </div>
 
-      {reviewCampaign && (() => {
-        const c = reviewCampaign;
-        const reviewCoaches = targetCoaches(c).filter(cf => getStaffEmails(cf));
-        const coach = reviewCoaches[reviewIndex];
-        if (!coach) return null;
-        const allEmails = getStaffEmails(coach);
-        const subj = resolveSubject(c, coach);
-        let body = resolveBody(coach);
-        if (reviewIndex > 0) body = `${INTROS[reviewIndex % INTROS.length]} — follow-up #${reviewIndex + 1}: ${body}`;
-        const advance = () => {
-          const next = reviewCoaches[reviewIndex + 1];
-          if (next) setReviewIndex(i => i + 1); else setReviewCampaign(null);
-        };
-        const handleApprove = async () => {
-          setSendingReview(true);
-          const { success } = await sendEmail(allEmails, subj, body.replace(/\n/g, "<br>"));
-          setSendingReview(false);
-          if (success) {
-            pushToast(`Sent to ${coach.staff.length} staff at ${coach.school}`, "success");
-            onEmailSent?.(coach.id, subj);
-            setCampaigns((prev: Campaign[]) => prev.map(pc => pc.id === c.id ? { ...pc, sent: pc.sent + 1, pendingReview: Math.max(0, pc.pendingReview - 1) } : pc));
-            advance();
-          } else pushToast("Failed to send. Check Gmail settings.", "error");
-        };
-        const handleSkip = () => {
-          setCampaigns((prev: Campaign[]) => prev.map(pc => pc.id === c.id ? { ...pc, pendingReview: Math.max(0, pc.pendingReview - 1) } : pc));
-          advance();
-        };
-        return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setReviewCampaign(null)} />
-            <div className="relative w-full max-w-2xl max-h-[90vh] flex flex-col rounded-3xl border border-white/10 bg-[#11111a] shadow-2xl shadow-black/50 animate-fade-in">
-              <div className="flex items-center justify-between px-6 py-4 border-b border-white/8">
-                <div>
-                  <h2 className="text-base font-semibold text-white font-['Plus_Jakarta_Sans']">Draft Review — {c.name}</h2>
-                  <p className="text-xs text-white/30 mt-0.5">Draft {reviewIndex + 1} of {reviewCoaches.length} · {coach.school}</p>
-                </div>
-                <button onClick={() => setReviewCampaign(null)} className="text-white/25 hover:text-white/60 transition-colors"><X size={16} /></button>
-              </div>
-              <div className="flex-1 overflow-y-auto p-5 space-y-4">
-                <div className="flex items-center gap-2 text-xs text-white/40 bg-white/4 rounded-lg px-3 py-2 border border-white/6"><Mail size={12} /> To: {coach.staff.filter(s => s.email).length} staff at {coach.school}</div>
-                <Field label="Subject"><div className="text-sm text-white/80 px-3 py-2 bg-white/3 rounded-lg border border-white/6">{subj}</div></Field>
-                <Field label="Message"><div className="text-[12.5px] text-white/75 leading-relaxed px-4 py-3 bg-white/3 rounded-xl border border-white/6 whitespace-pre-wrap font-['JetBrains_Mono']">{body}</div></Field>
-              </div>
-              <div className="px-6 py-4 border-t border-white/8 flex items-center justify-between">
-                <Btn variant="ghost" size="sm" onClick={handleSkip}>Skip</Btn>
-                <div className="flex gap-2">
-                  <Btn variant="ghost" size="sm" onClick={() => setReviewCampaign(null)}>Cancel</Btn>
-                  <Btn variant="primary" size="sm" onClick={handleApprove} disabled={sendingReview}>
-                    {sendingReview ? <><RefreshCw size={12} className="animate-spin" /> Sending...</> : <><Send size={12} /> Approve & Send</>}
-                  </Btn>
-                </div>
-              </div>
+      {/* Contact All button */}
+      <Card className="p-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-sm font-semibold text-white">Contact All Programs</h3>
+            <p className="text-xs text-white/40 mt-1">Sends an individual email to every program with staff email addresses. Emails are sent with a 45–90s delay to avoid rate limits. {lastDate && !sending && `Last broadcast: ${new Date(lastDate).toLocaleDateString()}.`}</p>
+          </div>
+          <div className="flex gap-2">
+            {sending && <Btn variant="outline" size="sm" onClick={cancel}><X size={12} /> Stop</Btn>}
+            <Btn variant="primary" size="lg" onClick={handleContactAll} disabled={sending}>
+              {sending ? <><RefreshCw size={14} className="animate-spin" /> Sending...</> : <><Zap size={14} /> Contact All {coaches.filter(c => getStaffEmails(c)).length} Programs</>}
+            </Btn>
+          </div>
+        </div>
+
+        {/* Progress */}
+        {sending && progress.total > 0 && (
+          <div className="mt-5 space-y-3">
+            <div className="flex justify-between text-xs text-white/40">
+              <span>{progress.current} of {progress.total} · {progress.sent} sent · {progress.failed} failed</span>
+              <span className="font-['JetBrains_Mono']">{Math.round((progress.current / progress.total) * 100)}%</span>
+            </div>
+            <div className="h-1.5 bg-white/6 rounded-full overflow-hidden">
+              <div className="h-full bg-gradient-to-r from-blue-500 to-violet-500 rounded-full transition-all duration-300" style={{ width: `${(progress.current / progress.total) * 100}%` }} />
             </div>
           </div>
-        );
-      })()}
+        )}
+
+        {/* Last result */}
+        {lastResult && !sending && (
+          <div className="mt-4 flex items-center gap-3 text-xs">
+            <span className="text-white/50">Last broadcast: {lastResult.date}</span>
+            <span className="text-green-400">{lastResult.sent} sent</span>
+            {lastResult.failed > 0 && <span className="text-red-400">{lastResult.failed} failed</span>}
+          </div>
+        )}
+      </Card>
+
+      {/* Live log */}
+      {recentLog.length > 0 && (
+        <Card className="p-5">
+          <div className="text-xs font-semibold text-white/60 mb-3 uppercase tracking-wider">Live Log</div>
+          <div className="space-y-1 max-h-[200px] overflow-y-auto">
+            {recentLog.map((e, i) => (
+              <div key={i} className="flex items-center gap-2 text-[11px]">
+                {e.status === "sent" ? <Send size={10} className="text-green-400 flex-shrink-0" /> : <X size={10} className="text-red-400 flex-shrink-0" />}
+                <span className={e.status === "sent" ? "text-white/70" : "text-red-400/70"}>{e.status === "sent" ? "Sent" : "Failed"}</span>
+                <span className="text-white/40">·</span>
+                <span className="text-white/50 truncate">{e.school}</span>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
     </div>
   );
 }
@@ -3369,7 +3231,7 @@ const PAGE_TITLES: Record<Page, string> = {
   dashboard: "Dashboard",
   coaches: "Coach Database",
   outreach: "Outreach Composer",
-  campaigns: "Campaigns",
+  broadcast: "Broadcast",
   pipeline: "Recruiting Pipeline",
   analytics: "Analytics",
   profile: "Player Profile",
@@ -3464,6 +3326,16 @@ export default function App() {
     setTrackingVersion(v => v + 1);
   };
 
+  useEffect(() => {
+    const last = getContactAllLast();
+    if (last) {
+      const daysSince = Math.floor((Date.now() - new Date(last).getTime()) / 86400000);
+      if (daysSince >= 5) setPage("broadcast");
+    } else {
+      setPage("broadcast");
+    }
+  }, []);
+
   const cfg = getEmailConfig();
   const gmailConfigured = !!(cfg.user && cfg.pass);
 
@@ -3488,7 +3360,7 @@ export default function App() {
           {page === "dashboard" && <DashboardPage key={trackingVersion} setPage={setPage} coaches={coaches} trackingVersion={trackingVersion} />}
           {page === "coaches" && <CoachesPage onSendEmail={setEmailModalCoach} coaches={coaches} />}
           {page === "outreach" && <OutreachPage />}
-          {page === "campaigns" && <CampaignsPage onSendEmail={setEmailModalCoach} coaches={coaches} onEmailSent={onEmailSent} />}
+          {page === "broadcast" && <BroadcastPage coaches={coaches} onEmailSent={onEmailSent} />}
           {page === "pipeline" && <PipelinePage coaches={coaches} />}
           {page === "analytics" && <AnalyticsPage />}
           {page === "profile" && <ProfilePage onProfileSave={() => setProfileVersion(v => v + 1)} />}
