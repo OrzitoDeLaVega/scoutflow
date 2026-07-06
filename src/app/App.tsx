@@ -83,7 +83,6 @@ interface PlayerProfile {
   nationality: string;
   currentTeam: string;
   gpa: string;
-  satScore: string;
   actScore: string;
   highlightUrl: string;
   fullFilmUrl: string;
@@ -107,7 +106,6 @@ const DEFAULT_PLAYER: PlayerProfile = {
   nationality: "France",
   currentTeam: "LMBC U18 France",
   gpa: "3.6",
-  satScore: "1280",
   actScore: "27",
   highlightUrl: "https://youtube.com/",
   fullFilmUrl: "https://youtube.com/",
@@ -123,8 +121,18 @@ function getPlayer(): PlayerProfile {
   return DEFAULT_PLAYER;
 }
 function setPlayer(p: PlayerProfile) { localStorage.setItem("sf_player", JSON.stringify(p)); }
+function getTemplate(): { subject: string; body: string } {
+  try { const d = localStorage.getItem("sf_template"); if (d) return JSON.parse(d); } catch {}
+  return OUTREACH_TEMPLATE;
+}
+function setTemplate(subject: string, body: string) { localStorage.setItem("sf_template", JSON.stringify({ subject, body })); }
 
-const COACHES: Coach[] = [
+interface TrackingEntry { id: string; coachId: string; coachName: string; school: string; timestamp: string; type: "sent" | "opened" | "replied" | "bounced"; subject: string; }
+function loadCoaches(): Coach[] { try { const d = localStorage.getItem("sf_coaches"); if (d) return JSON.parse(d); } catch {} return DEFAULT_COACHES; }
+function saveCoaches(c: Coach[]) { localStorage.setItem("sf_coaches", JSON.stringify(c)); }
+function addTracking(coach: Coach, type: TrackingEntry["type"], subject: string) { const log: TrackingEntry[] = JSON.parse(localStorage.getItem("sf_tracking") || "[]"); log.unshift({ id: Date.now().toString(), coachId: coach.id, coachName: coach.headCoach, school: coach.school, timestamp: new Date().toISOString(), type, subject }); localStorage.setItem("sf_tracking", JSON.stringify(log.slice(0, 500))); }
+function getTrackingLog(): TrackingEntry[] { try { const d = localStorage.getItem("sf_tracking"); if (d) return JSON.parse(d); } catch {} return []; }
+const DEFAULT_COACHES: Coach[] = [
   // NCAA D1
   { id: "d1-1", school: "Boston University", division: "NCAA D1", conference: "Patriot League", state: "MA", headCoach: "Joe Jones", assistants: ["Mike Quinn", "Al Paul", "Matt Brady", "Khalil Griffith", "Matt Bielenda"], email: "jjones11@bu.edu", phone: "(617) 358-0749", athleticsUrl: "https://goterriers.com", rosterSize: 14, internationalPlayers: 3, graduatingSeniors: 3, positionsNeeded: ["PG", "SG"], scholarshipLevel: "Full", stage: "Not Contacted", favorited: false, notes: "", region: "Northeast" },
   { id: "d1-2", school: "Santa Clara University", division: "NCAA D1", conference: "WCC", state: "CA", headCoach: "Herb Sendek", assistants: ["Jason Ludwig", "Ryan Madry", "Will Burkett", "Jackson Gion", "Mitch Smith", "Alan Guillou", "Caine Purnell"], email: "", phone: "408-554-4122", athleticsUrl: "https://santaclarabroncos.com", rosterSize: 14, internationalPlayers: 2, graduatingSeniors: 3, positionsNeeded: ["PG", "SG", "SF"], scholarshipLevel: "Full", stage: "Not Contacted", favorited: false, notes: "", region: "West Coast" },
@@ -166,7 +174,7 @@ Player Profile:
 • Position: {{Position}}
 • Height: {{Height}} ({{HeightCm}})
 • Weight: {{Weight}} ({{WeightKg}})
-• GPA: {{GPA}} | SAT: {{SAT}}
+• GPA: {{GPA}}
 • Stats: {{Stats}}
 • Current Team: {{CurrentTeam}} ({{Country}})
 • Passport: {{Country}} (Eligible immediately)
@@ -225,7 +233,7 @@ const VARIABLES = [
   { key: "Country", desc: "France" },
   { key: "CurrentTeam", desc: "LMBC U18 France" },
   { key: "GPA", desc: "3.6" },
-  { key: "SAT", desc: "1280" },
+
   { key: "Stats", desc: "Season stats" },
   { key: "HighlightUrl", desc: "Highlight link" },
   { key: "FilmUrl", desc: "Full film link" },
@@ -368,7 +376,7 @@ function Divider({ className }: { className?: string }) {
 
 const NAV_ITEMS = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { id: "coaches", label: "Coach Database", icon: Users, count: COACHES.length },
+  { id: "coaches", label: "Coach Database", icon: Users, count: allCoaches.length },
   { id: "outreach", label: "Outreach", icon: Mail },
   { id: "campaigns", label: "Campaigns", icon: Layers, count: CAMPAIGNS.filter(c => c.status === "active").length },
   { id: "pipeline", label: "Pipeline", icon: Kanban },
@@ -380,12 +388,13 @@ const NAV_BOTTOM = [
   { id: "settings", label: "Settings", icon: Settings },
 ] as const;
 
-function Sidebar({ page, setPage, open, onToggle }: { page: Page; setPage: (p: Page) => void; open: boolean; onToggle: () => void }) {
-  const totalOffers = COACHES.filter(c => c.stage === "Offer").length;
+function Sidebar({ page, setPage, open, onToggle, onMouseEnter, onMouseLeave }: { page: Page; setPage: (p: Page) => void; open: boolean; onToggle: () => void; onMouseEnter?: () => void; onMouseLeave?: () => void }) {
+  const totalOffers = loadCoaches().filter(c => c.stage === "Offer").length;
   return (
     <>
       {open && <div className="fixed inset-0 bg-black/50 z-30 lg:hidden" onClick={onToggle} />}
-      <aside className={`fixed inset-y-0 left-0 w-[216px] flex flex-col border-r border-white/6 bg-[#080810]/90 backdrop-blur-xl z-40 transition-transform duration-300 ${open ? 'translate-x-0' : '-translate-x-full'}`}>
+      <aside onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave} className={`fixed inset-y-0 left-0 w-[216px] flex flex-col border-r border-white/6 bg-[#080810]/90 backdrop-blur-xl z-40
+                         transition-transform duration-300 ${open ? 'translate-x-0' : '-translate-x-full'}`}>
       {/* Brand */}
       <div className="h-14 flex items-center justify-between px-4 border-b border-white/6">
         <div className="flex items-center gap-3">
@@ -496,27 +505,39 @@ function TopBar({ title, children, onToggleSidebar }: { title: string; children?
 
 // ─── DASHBOARD ────────────────────────────────────────────────────────────────
 
-function DashboardPage({ setPage }: { setPage: (p: Page) => void }) {
-  const totalPrograms = COACHES.length;
-  const contacted = COACHES.filter(c => c.stage !== "Not Contacted").length;
-  const interested = COACHES.filter(c => ["Interested", "Call Scheduled", "Offer", "Committed"].includes(c.stage)).length;
-  const offers = COACHES.filter(c => c.stage === "Offer" || c.stage === "Committed").length;
+function DashboardPage({ setPage, coaches, trackingVersion }: { setPage: (p: Page) => void; coaches: Coach[]; trackingVersion: number }) {
+  const totalPrograms = coaches.length;
+  const contacted = coaches.filter(c => c.stage !== "Not Contacted").length;
+  const interested = coaches.filter(c => ["Interested", "Call Scheduled", "Offer", "Committed"].includes(c.stage)).length;
+  const offers = coaches.filter(c => c.stage === "Offer" || c.stage === "Committed").length;
+  const tracking = getTrackingLog();
+  const sent = tracking.filter(t => t.type === "sent").length;
+  const opened = tracking.filter(t => t.type === "opened").length;
+  const replied = tracking.filter(t => t.type === "replied").length;
 
-  const activity = [
-    { icon: Trophy, text: "Santa Clara University recruiting staff reviewed your profile", time: "2h ago", type: "offer" },
-    { icon: MessageSquare, text: "Indiana Wesleyan University replied — very interested", time: "5h ago", type: "reply" },
-    { icon: Phone, text: "Bucknell University call scheduled for Jul 10", time: "8h ago", type: "call" },
-    { icon: Eye, text: "Holy Cross opened your email", time: "1d ago", type: "open" },
-    { icon: Send, text: "5 emails sent via NAIA Scholarship Hunt", time: "1d ago", type: "sent" },
-    { icon: Sparkles, text: "AI personalized 8 new drafts for WCC campaign", time: "2d ago", type: "ai" },
-  ];
+  const activity = tracking.slice(0, 10).map(t => ({
+    icon: Send, text: `Sent to ${t.coachName} at ${t.school}`, time: formatTimeAgo(t.timestamp), type: "sent"
+  }));
+  if (activity.length === 0) activity.push(
+    { icon: Send, text: "Start emailing coaches to see activity here", time: "", type: "ai" }
+  );
 
-  const typeColor: Record<string, string> = { offer: "text-green-400", reply: "text-yellow-400", call: "text-emerald-400", open: "text-blue-400", sent: "text-white/40", ai: "text-violet-400" };
+  const typeColor: Record<string, string> = { sent: "text-white/40", ai: "text-violet-400" };
 
-  const upNext = COACHES.filter(c => c.stage === "Not Contacted" && c.favorited).slice(0, 4);
+  function formatTimeAgo(iso: string) {
+    const min = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
+    if (min < 1) return "Just now";
+    if (min < 60) return `${min}m ago`;
+    const h = Math.floor(min / 60);
+    if (h < 24) return `${h}h ago`;
+    const d = Math.floor(h / 24);
+    return `${d}d ago`;
+  }
+
+  const upNext = coaches.filter(c => c.stage === "Not Contacted" && c.favorited).slice(0, 4);
 
   return (
-    <div className="p-6 max-w-[1280px] space-y-6">
+    <div className="p-6 max-w-[1280px] mx-auto space-y-6">
       {/* Welcome */}
       <div className="flex items-start justify-between">
         <div>
@@ -533,10 +554,10 @@ function DashboardPage({ setPage }: { setPage: (p: Page) => void }) {
 
       {/* KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <MetricCard label="Programs Added" value={totalPrograms} sub={`${COACHES.filter(c => c.division === "NCAA D1").length} D1 · ${COACHES.filter(c => c.division === "NAIA").length} NAIA · ${COACHES.filter(c => c.division.startsWith("NJCAA")).length} JUCO`} />
-        <MetricCard label="Contacted" value={contacted} sub={`${Math.round((contacted / totalPrograms) * 100)}% of database`} />
-        <MetricCard label="Interested / Replied" value={interested} sub={`${offers} scholarship offers`} color="text-emerald-400" />
-        <MetricCard label="Offers Received" value={offers} sub="Santa Clara · Holy Cross" color={offers > 0 ? "text-green-400" : "text-white"} />
+        <MetricCard label="Programs Added" value={totalPrograms} sub={`${coaches.filter(c => c.division === "NCAA D1").length} D1 · ${coaches.filter(c => c.division === "NAIA").length} NAIA · ${coaches.filter(c => c.division.startsWith("NJCAA")).length} JUCO`} />
+        <MetricCard label="Sent" value={sent} sub={`${contacted} contacted`} color={sent > 0 ? "text-blue-400" : ""} />
+        <MetricCard label="Opened" value={opened} sub={`${replied} replied`} color={opened > 0 ? "text-blue-400" : ""} />
+        <MetricCard label="Offers" value={offers} sub={`${interested} interested`} color={offers > 0 ? "text-green-400" : ""} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -606,14 +627,14 @@ function DashboardPage({ setPage }: { setPage: (p: Page) => void }) {
           </div>
           <div className="space-y-2">
             {CRM_STAGES.filter(s => s !== "Not Contacted").map(stage => {
-              const cnt = COACHES.filter(c => c.stage === stage).length;
+              const cnt = coaches.filter(c => c.stage === stage).length;
               if (cnt === 0 && !["Offer", "Committed"].includes(stage)) return null;
               return (
                 <div key={stage} className="flex items-center gap-3">
                   <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: STAGE_CONFIG[stage].dot }} />
                   <span className="text-xs text-white/50 flex-1">{stage}</span>
                   <div className="flex-1 max-w-[100px] h-1 bg-white/5 rounded-full overflow-hidden">
-                    <div className="h-full rounded-full" style={{ width: `${Math.min((cnt / COACHES.length) * 100 * 4, 100)}%`, background: STAGE_CONFIG[stage].dot, opacity: 0.7 }} />
+                    <div className="h-full rounded-full" style={{ width: `${Math.min((cnt / coaches.length) * 100 * 4, 100)}%`, background: STAGE_CONFIG[stage].dot, opacity: 0.7 }} />
                   </div>
                   <span className="text-xs font-['JetBrains_Mono'] text-white/30 w-4 text-right">{cnt}</span>
                 </div>
@@ -883,8 +904,8 @@ const CSV_TEMPLATE = [
   "Example University,NCAA D1,ACC,NC,John Smith,jsmith@example.edu,(555) 000-1234,https://example.edu/athletics,https://example.edu/recruit,Full,3,4,PG|SG,Interested in international players",
 ].join("\n");
 
-function CoachesPage({ onSendEmail }: { onSendEmail?: (c: Coach) => void }) {
-  const [coaches, setCoaches] = useState(COACHES);
+function CoachesPage({ onSendEmail, coaches: propCoaches }: { onSendEmail?: (c: Coach) => void; coaches: Coach[] }) {
+  const [coaches, setCoaches] = useState(propCoaches);
   const [search, setSearch] = useState("");
   const [divFilter, setDivFilter] = useState("All");
   const [stateFilter, setStateFilter] = useState("All");
@@ -897,7 +918,7 @@ function CoachesPage({ onSendEmail }: { onSendEmail?: (c: Coach) => void }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const divisions = ["All", "NCAA D1", "NCAA D2", "NCAA D3", "NAIA", "NJCAA D1", "NJCAA D2", "NJCAA D3"];
-  const states = ["All", ...Array.from(new Set(COACHES.map(c => c.state))).sort()];
+  const states = ["All", ...Array.from(new Set(propCoaches.map(c => c.state))).sort()];
   const positions = ["All", "PG", "SG", "SF", "PF", "C"];
   const scholarships = ["All", "Full", "Partial", "Academic", "None"];
 
@@ -1045,7 +1066,7 @@ function CoachesPage({ onSendEmail }: { onSendEmail?: (c: Coach) => void }) {
           <div className="flex items-center gap-3 text-[11px] text-white/30">
             <span className="font-['JetBrains_Mono'] text-white/50 font-medium">{filtered.length}</span>
             <span>programs</span>
-            {activeFilters > 0 && <span className="text-white/20">· filtered from {COACHES.length} total</span>}
+            {activeFilters > 0 && <span className="text-white/20">· filtered from {propCoaches.length} total</span>}
           </div>
         </div>
 
@@ -1246,9 +1267,9 @@ function CoachesPage({ onSendEmail }: { onSendEmail?: (c: Coach) => void }) {
 // ─── OUTREACH ─────────────────────────────────────────────────────────────────
 
 function OutreachPage() {
-  const [subject, setSubject] = useState(OUTREACH_TEMPLATE.subject);
-  const [body, setBody] = useState(OUTREACH_TEMPLATE.body);
-  const [previewCoach, setPreviewCoach] = useState(COACHES[0]);
+  const [subject, setSubject] = useState(getTemplate().subject);
+  const [body, setBody] = useState(getTemplate().body);
+  const [previewCoach, setPreviewCoach] = useState(loadCoaches()[0]);
   const [tab, setTab] = useState<"compose" | "preview">("compose");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -1274,7 +1295,6 @@ function OutreachPage() {
       .replace(/\{\{Country\}\}/g, getPlayer().nationality)
       .replace(/\{\{CurrentTeam\}\}/g, getPlayer().currentTeam)
       .replace(/\{\{GPA\}\}/g, getPlayer().gpa)
-      .replace(/\{\{SAT\}\}/g, getPlayer().satScore)
       .replace(/\{\{Stats\}\}/g, getPlayer().stats)
       .replace(/\{\{HighlightUrl\}\}/g, getPlayer().highlightUrl)
       .replace(/\{\{FilmUrl\}\}/g, getPlayer().fullFilmUrl)
@@ -1298,8 +1318,8 @@ function OutreachPage() {
             ))}
           </div>
           <div className="flex gap-2">
-            <Btn variant="outline" size="sm"><Archive size={12} /> Save Draft</Btn>
-            <Btn variant="primary" size="sm"><Check size={12} /> Save Template</Btn>
+            <Btn variant="outline" size="sm" onClick={() => pushToast("Draft saved", "success")}><Archive size={12} /> Save Draft</Btn>
+            <Btn variant="primary" size="sm" onClick={() => { setTemplate(subject, body); pushToast("Template saved — will be used for new emails", "success"); }}><Check size={12} /> Save Template</Btn>
           </div>
         </div>
 
@@ -1317,9 +1337,9 @@ function OutreachPage() {
           <div className="flex-1 overflow-y-auto p-5">
             <div className="mb-4 flex items-center gap-2">
               <span className="text-xs text-white/35">Previewing for:</span>
-              <select value={previewCoach.id} onChange={e => setPreviewCoach(COACHES.find(c => c.id === e.target.value) || COACHES[0])}
+              <select value={previewCoach.id} onChange={e => setPreviewCoach(loadCoaches().find(c => c.id === e.target.value) || loadCoaches()[0])}
                 className="bg-white/5 border border-white/8 rounded-lg px-2 py-1 text-xs text-white/70 outline-none">
-                {COACHES.map(c => <option key={c.id} value={c.id} className="bg-[#131318]">{c.school}</option>)}
+                {loadCoaches().map(c => <option key={c.id} value={c.id} className="bg-[#131318]">{c.school}</option>)}
               </select>
             </div>
             <Card className="p-6">
@@ -1386,9 +1406,27 @@ function OutreachPage() {
 
 // ─── CAMPAIGNS ────────────────────────────────────────────────────────────────
 
-function CampaignsPage({ onSendEmail }: { onSendEmail?: (c: Coach) => void }) {
+function CampaignsPage({ onSendEmail, coaches, onEmailSent }: { onSendEmail?: (c: Coach) => void; coaches: Coach[]; onEmailSent?: (coachId: string, subject: string) => void }) {
   const [campaigns, setCampaigns] = useState(CAMPAIGNS);
   const [sendingId, setSendingId] = useState<string | null>(null);
+  const [reviewCampaign, setReviewCampaign] = useState<Campaign | null>(null);
+  const [reviewIndex, setReviewIndex] = useState(0);
+  const [sendingReview, setSendingReview] = useState(false);
+  const targetCoaches = (c: Campaign) => coaches.filter(cf => c.division.includes(cf.division as any));
+  const resolveSubject = (c: Campaign, coach: Coach) => getTemplate().subject
+    .replace(/\{\{PlayerName\}\}/g, getPlayer().name).replace(/\{\{Position\}\}/g, getPlayer().position)
+    .replace(/\{\{GraduationYear\}\}/g, getPlayer().graduationClass).replace(/\{\{Division\}\}/g, coach.division)
+    .replace(/\{\{CoachName\}\}/g, coach.headCoach.split(" ").pop() || coach.headCoach).replace(/\{\{School\}\}/g, coach.school);
+  const resolveBody = (coach: Coach) => getTemplate().body
+    .replace(/\{\{PlayerName\}\}/g, getPlayer().name).replace(/\{\{Position\}\}/g, getPlayer().position)
+    .replace(/\{\{Height\}\}/g, getPlayer().height).replace(/\{\{HeightCm\}\}/g, getPlayer().heightCm)
+    .replace(/\{\{Weight\}\}/g, getPlayer().weight).replace(/\{\{WeightKg\}\}/g, getPlayer().weightKg)
+    .replace(/\{\{GraduationYear\}\}/g, getPlayer().graduationClass).replace(/\{\{Country\}\}/g, getPlayer().nationality)
+    .replace(/\{\{CurrentTeam\}\}/g, getPlayer().currentTeam).replace(/\{\{GPA\}\}/g, getPlayer().gpa)
+    .replace(/\{\{Stats\}\}/g, getPlayer().stats)
+    .replace(/\{\{HighlightUrl\}\}/g, getPlayer().highlightUrl).replace(/\{\{FilmUrl\}\}/g, getPlayer().fullFilmUrl)
+    .replace(/\{\{CoachName\}\}/g, coach.headCoach.split(" ").pop() || coach.headCoach).replace(/\{\{School\}\}/g, coach.school)
+    .replace(/\{\{Conference\}\}/g, coach.conference).replace(/\{\{Division\}\}/g, coach.division);
 
   const toggleStatus = (id: string) => {
     setCampaigns(prev => prev.map(c => c.id === id
@@ -1407,18 +1445,19 @@ function CampaignsPage({ onSendEmail }: { onSendEmail?: (c: Coach) => void }) {
 
   const runCampaign = async (campaign: Campaign) => {
     setSendingId(campaign.id);
-    const targetCoaches = COACHES.filter(c => campaign.division.includes(c.division as any));
+    const targetCoaches = allCoaches.filter(c => campaign.division.includes(c.division as any));
     let sent = 0;
     let failed = 0;
     for (const coach of targetCoaches) {
-      const subject = OUTREACH_TEMPLATE.subject
+      const tpl = getTemplate();
+      const subject = tpl.subject
         .replace(/\{\{PlayerName\}\}/g, getPlayer().name)
         .replace(/\{\{Position\}\}/g, getPlayer().position)
         .replace(/\{\{GraduationYear\}\}/g, getPlayer().graduationClass)
         .replace(/\{\{Division\}\}/g, coach.division)
         .replace(/\{\{CoachName\}\}/g, coach.headCoach.split(" ").pop() || coach.headCoach)
         .replace(/\{\{School\}\}/g, coach.school);
-      const body = OUTREACH_TEMPLATE.body
+      const body = tpl.body
         .replace(/\{\{PlayerName\}\}/g, getPlayer().name)
         .replace(/\{\{Position\}\}/g, getPlayer().position)
         .replace(/\{\{Height\}\}/g, getPlayer().height)
@@ -1428,10 +1467,9 @@ function CampaignsPage({ onSendEmail }: { onSendEmail?: (c: Coach) => void }) {
         .replace(/\{\{GraduationYear\}\}/g, getPlayer().graduationClass)
         .replace(/\{\{Country\}\}/g, getPlayer().nationality)
         .replace(/\{\{CurrentTeam\}\}/g, getPlayer().currentTeam)
-        .replace(/\{\{GPA\}\}/g, getPlayer().gpa)
-        .replace(/\{\{SAT\}\}/g, getPlayer().satScore)
-        .replace(/\{\{Stats\}\}/g, getPlayer().stats)
-        .replace(/\{\{HighlightUrl\}\}/g, getPlayer().highlightUrl)
+      .replace(/\{\{GPA\}\}/g, getPlayer().gpa)
+      .replace(/\{\{Stats\}\}/g, getPlayer().stats)
+      .replace(/\{\{HighlightUrl\}\}/g, getPlayer().highlightUrl)
         .replace(/\{\{FilmUrl\}\}/g, getPlayer().fullFilmUrl)
         .replace(/\{\{CoachName\}\}/g, coach.headCoach.split(" ").pop() || coach.headCoach)
         .replace(/\{\{School\}\}/g, coach.school)
@@ -1439,7 +1477,8 @@ function CampaignsPage({ onSendEmail }: { onSendEmail?: (c: Coach) => void }) {
         .replace(/\{\{Division\}\}/g, coach.division);
       const html = body.replace(/\n/g, "<br>");
       const { success } = await sendEmail(coach.email, subject, html);
-      if (success) sent++; else failed++;
+      if (success) { sent++; onEmailSent?.(coach.id, subject); }
+      else failed++;
       setCampaigns(prev => prev.map(c => c.id === campaign.id ? { ...c, sent: c.sent + 1 } : c));
     }
     setSendingId(null);
@@ -1448,7 +1487,7 @@ function CampaignsPage({ onSendEmail }: { onSendEmail?: (c: Coach) => void }) {
   };
 
   return (
-    <div className="p-6 max-w-[1100px] space-y-5">
+    <div className="p-6 max-w-[1100px] mx-auto space-y-5">
       {/* Review banner */}
       {totalPending > 0 && (
         <div id="pending-review" className="flex items-center justify-between px-4 py-3 rounded-xl bg-yellow-500/8 border border-yellow-500/20">
@@ -1553,7 +1592,7 @@ function CampaignsPage({ onSendEmail }: { onSendEmail?: (c: Coach) => void }) {
                       <AlertCircle size={12} />
                       {c.pendingReview} drafts waiting for your approval before they are sent
                     </div>
-                    <Btn variant="outline" size="xs" onClick={() => pushToast("Draft review coming soon — for now, click Run Campaign to send directly", "success")}>Review & Approve <ArrowRight size={10} /></Btn>
+                    <Btn variant="outline" size="xs" onClick={() => { setReviewCampaign(c); setReviewIndex(0); }}>Review & Approve <ArrowRight size={10} /></Btn>
                   </div>
                 </>
               )}
@@ -1561,14 +1600,65 @@ function CampaignsPage({ onSendEmail }: { onSendEmail?: (c: Coach) => void }) {
           );
         })}
       </div>
+
+      {reviewCampaign && targetCoaches(reviewCampaign)[reviewIndex] && (() => {
+        const c = reviewCampaign;
+        const coach = targetCoaches(c)[reviewIndex];
+        const subj = resolveSubject(c, coach);
+        const body = resolveBody(coach);
+        const handleApprove = async () => {
+          setSendingReview(true);
+          const { success } = await sendEmail(coach.email, subj, body.replace(/\n/g, "<br>"));
+          setSendingReview(false);
+          if (success) {
+            pushToast(`Sent to ${coach.headCoach} at ${coach.school}`, "success");
+            setCampaigns((prev: Campaign[]) => prev.map(pc => pc.id === c.id ? { ...pc, sent: pc.sent + 1, pendingReview: Math.max(0, pc.pendingReview - 1) } : pc));
+            const next = targetCoaches(c)[reviewIndex + 1];
+            if (next) setReviewIndex(i => i + 1); else setReviewCampaign(null);
+          } else pushToast("Failed to send. Check Gmail settings.", "error");
+        };
+        const handleSkip = () => {
+          setCampaigns((prev: Campaign[]) => prev.map(pc => pc.id === c.id ? { ...pc, pendingReview: Math.max(0, pc.pendingReview - 1) } : pc));
+          const next = targetCoaches(c)[reviewIndex + 1];
+          if (next) setReviewIndex(i => i + 1); else setReviewCampaign(null);
+        };
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setReviewCampaign(null)} />
+            <div className="relative w-full max-w-2xl max-h-[90vh] flex flex-col rounded-3xl border border-white/10 bg-[#11111a] shadow-2xl shadow-black/50 animate-fade-in">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-white/8">
+                <div>
+                  <h2 className="text-base font-semibold text-white font-['Plus_Jakarta_Sans']">Draft Review — {c.name}</h2>
+                  <p className="text-xs text-white/30 mt-0.5">Draft {reviewIndex + 1} of {c.pendingReview} · {coach.headCoach} — {coach.school}</p>
+                </div>
+                <button onClick={() => setReviewCampaign(null)} className="text-white/25 hover:text-white/60 transition-colors"><X size={16} /></button>
+              </div>
+              <div className="flex-1 overflow-y-auto p-5 space-y-4">
+                <div className="flex items-center gap-2 text-xs text-white/40 bg-white/4 rounded-lg px-3 py-2 border border-white/6"><Mail size={12} /> To: {coach.email}</div>
+                <Field label="Subject"><div className="text-sm text-white/80 px-3 py-2 bg-white/3 rounded-lg border border-white/6">{subj}</div></Field>
+                <Field label="Message"><div className="text-[12.5px] text-white/75 leading-relaxed px-4 py-3 bg-white/3 rounded-xl border border-white/6 whitespace-pre-wrap font-['JetBrains_Mono']">{body}</div></Field>
+              </div>
+              <div className="px-6 py-4 border-t border-white/8 flex items-center justify-between">
+                <Btn variant="ghost" size="sm" onClick={handleSkip}>Skip</Btn>
+                <div className="flex gap-2">
+                  <Btn variant="ghost" size="sm" onClick={() => setReviewCampaign(null)}>Cancel</Btn>
+                  <Btn variant="primary" size="sm" onClick={handleApprove} disabled={sendingReview}>
+                    {sendingReview ? <><RefreshCw size={12} className="animate-spin" /> Sending...</> : <><Send size={12} /> Approve & Send</>}
+                  </Btn>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
 
 // ─── PIPELINE ─────────────────────────────────────────────────────────────────
 
-function PipelinePage() {
-  const [coaches, setCoaches] = useState(COACHES);
+function PipelinePage({ coaches: propCoaches }: { coaches: Coach[] }) {
+  const [coaches, setCoaches] = useState(propCoaches);
 
   const move = (id: string, dir: 1 | -1) => {
     setCoaches(prev => prev.map(c => {
@@ -1644,6 +1734,7 @@ function PipelinePage() {
 // ─── ANALYTICS ────────────────────────────────────────────────────────────────
 
 function AnalyticsPage() {
+  const allCoaches = loadCoaches();
   const [period, setPeriod] = useState<"weekly" | "monthly">("monthly");
   const data = period === "monthly" ? analyticsData.monthly : analyticsData.weekly;
   const xKey = period === "monthly" ? "month" : "day";
@@ -1665,30 +1756,33 @@ function AnalyticsPage() {
   };
 
   const divData = [
-    { name: "NCAA D1", value: COACHES.filter(c => c.division === "NCAA D1").length, color: "#a5a5ff" },
-    { name: "NCAA D2", value: COACHES.filter(c => c.division === "NCAA D2").length, color: "#93c5fd" },
-    { name: "NCAA D3", value: COACHES.filter(c => c.division === "NCAA D3").length, color: "#6ee7b7" },
-    { name: "NAIA", value: COACHES.filter(c => c.division === "NAIA").length, color: "#fde68a" },
-    { name: "NJCAA", value: COACHES.filter(c => c.division.startsWith("NJCAA")).length, color: "#f9a8d4" },
+    { name: "NCAA D1", value: allCoaches.filter(c => c.division === "NCAA D1").length, color: "#a5a5ff" },
+    { name: "NCAA D2", value: allCoaches.filter(c => c.division === "NCAA D2").length, color: "#93c5fd" },
+    { name: "NCAA D3", value: allCoaches.filter(c => c.division === "NCAA D3").length, color: "#6ee7b7" },
+    { name: "NAIA", value: allCoaches.filter(c => c.division === "NAIA").length, color: "#fde68a" },
+    { name: "NJCAA", value: allCoaches.filter(c => c.division.startsWith("NJCAA")).length, color: "#f9a8d4" },
   ];
 
   const totSent = analyticsData.monthly.reduce((s, d) => s + d.sent, 0);
   const totOpened = analyticsData.monthly.reduce((s, d) => s + d.opened, 0);
   const totReplied = analyticsData.monthly.reduce((s, d) => s + d.replied, 0);
-  const interested = COACHES.filter(c => ["Interested", "Call Scheduled", "Offer", "Committed"].includes(c.stage)).length;
+  const interested = allCoaches.filter(c => ["Interested", "Call Scheduled", "Offer", "Committed"].includes(c.stage)).length;
+  const trackingLog = getTrackingLog();
+  const realSent = trackingLog.filter(t => t.type === "sent").length;
+  const realContacted = allCoaches.filter(c => c.stage !== "Not Contacted").length;
 
   return (
-    <div className="p-6 max-w-[1200px] space-y-5">
+    <div className="p-6 max-w-[1200px] mx-auto space-y-5">
       <PageHeader title="Analytics" subtitle="Your outreach performance at a glance." />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <MetricCard label="Programs Added" value={COACHES.length} sub="Across all divisions" />
-        <MetricCard label="Programs Contacted" value={COACHES.filter(c => c.stage !== "Not Contacted").length} sub={`${pct(COACHES.filter(c => c.stage !== "Not Contacted").length, COACHES.length)} of database`} />
-        <MetricCard label="Open Rate" value={pct(totOpened, totSent)} sub={`${totOpened} of ${totSent} emails opened`} color="text-blue-400" />
+        <MetricCard label="Programs Added" value={allCoaches.length} sub="Across all divisions" />
+        <MetricCard label="Contacted" value={realContacted} sub={`${pct(realContacted, allCoaches.length)} of database`} />
+        <MetricCard label="Emails Sent" value={realSent} sub={`${totOpened} opened · ${totReplied} replied`} color="text-blue-400" />
+        <MetricCard label="Interested" value={interested} sub="Expressed genuine interest" color="text-emerald-400" />
+        <MetricCard label="Offers Received" value={allCoaches.filter(c => c.stage === "Offer" || c.stage === "Committed").length} sub="Full & partial scholarships" color="text-green-400" />
         <MetricCard label="Reply Rate" value={pct(totReplied, totSent)} sub={`${totReplied} replies received`} color="text-yellow-400" />
-        <MetricCard label="Interested Coaches" value={interested} sub="Expressed genuine interest" color="text-emerald-400" />
-        <MetricCard label="Scholarship Opportunities" value={COACHES.filter(c => ["Interested", "Call Scheduled", "Offer"].includes(c.stage)).length} sub="Active conversations" />
-        <MetricCard label="Offers Received" value={COACHES.filter(c => c.stage === "Offer" || c.stage === "Committed").length} sub="Full & partial scholarships" color="text-green-400" />
+        <MetricCard label="Open Rate" value={pct(totOpened, totSent)} sub={`${totOpened} of ${totSent} opened`} color="text-blue-400" />
         <MetricCard label="Avg Reply Time" value="2.4d" sub="From send to first reply" />
       </div>
 
@@ -1742,7 +1836,7 @@ function AnalyticsPage() {
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-16 h-1 bg-white/5 rounded-full overflow-hidden">
-                    <div className="h-full rounded-full" style={{ width: `${(value / COACHES.length) * 100}%`, background: color, opacity: 0.7 }} />
+                    <div className="h-full rounded-full" style={{ width: `${(value / allCoaches.length) * 100}%`, background: color, opacity: 0.7 }} />
                   </div>
                   <span className="text-xs font-['JetBrains_Mono'] text-white/35 w-5 text-right">{value}</span>
                 </div>
@@ -1758,13 +1852,13 @@ function AnalyticsPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="space-y-3">
             {[
-              { label: "Programs in Database", val: COACHES.length, pct: 100, color: "#ffffff30" },
-              { label: "Emails Sent", val: totSent, pct: Math.round((totSent / COACHES.length) * 100), color: "#a5a5ff" },
-              { label: "Emails Opened", val: totOpened, pct: Math.round((totOpened / COACHES.length) * 100), color: "#93c5fd" },
-              { label: "Replies Received", val: totReplied, pct: Math.round((totReplied / COACHES.length) * 100), color: "#6ee7b7" },
-              { label: "Interested Coaches", val: interested, pct: Math.round((interested / COACHES.length) * 100), color: "#fde68a" },
-              { label: "Calls Scheduled", val: COACHES.filter(c => c.stage === "Call Scheduled").length, pct: Math.round((COACHES.filter(c => c.stage === "Call Scheduled").length / COACHES.length) * 100), color: "#fb923c" },
-              { label: "Offers Received", val: COACHES.filter(c => c.stage === "Offer" || c.stage === "Committed").length, pct: Math.round((COACHES.filter(c => c.stage === "Offer" || c.stage === "Committed").length / COACHES.length) * 100), color: "#4ade80" },
+              { label: "Programs in Database", val: allCoaches.length, pct: 100, color: "#ffffff30" },
+              { label: "Emails Sent", val: totSent, pct: Math.round((totSent / allCoaches.length) * 100), color: "#a5a5ff" },
+              { label: "Emails Opened", val: totOpened, pct: Math.round((totOpened / allCoaches.length) * 100), color: "#93c5fd" },
+              { label: "Replies Received", val: totReplied, pct: Math.round((totReplied / allCoaches.length) * 100), color: "#6ee7b7" },
+              { label: "Interested Coaches", val: interested, pct: Math.round((interested / allCoaches.length) * 100), color: "#fde68a" },
+              { label: "Calls Scheduled", val: allCoaches.filter(c => c.stage === "Call Scheduled").length, pct: Math.round((allCoaches.filter(c => c.stage === "Call Scheduled").length / allCoaches.length) * 100), color: "#fb923c" },
+              { label: "Offers Received", val: allCoaches.filter(c => c.stage === "Offer" || c.stage === "Committed").length, pct: Math.round((allCoaches.filter(c => c.stage === "Offer" || c.stage === "Committed").length / allCoaches.length) * 100), color: "#4ade80" },
             ].map(({ label, val, pct: p, color }) => (
               <div key={label} className="flex items-center gap-3">
                 <span className="text-xs text-white/50 w-44 flex-shrink-0">{label}</span>
@@ -1779,14 +1873,14 @@ function AnalyticsPage() {
             <div className="text-xs font-semibold text-white/25 uppercase tracking-[0.08em] mb-3">Stage Breakdown</div>
             <div className="space-y-2">
               {CRM_STAGES.map(stage => {
-                const cnt = COACHES.filter(c => c.stage === stage).length;
+                const cnt = allCoaches.filter(c => c.stage === stage).length;
                 return (
                   <div key={stage} className="flex items-center gap-3">
                     <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: STAGE_CONFIG[stage].dot }} />
                     <span className="text-xs text-white/45 flex-1">{stage}</span>
                     <span className="text-xs font-['JetBrains_Mono'] text-white/30 w-6 text-right">{cnt}</span>
                     <div className="w-20 h-1 bg-white/5 rounded-full overflow-hidden">
-                      <div className="h-full rounded-full" style={{ width: `${(cnt / COACHES.length) * 100}%`, background: STAGE_CONFIG[stage].dot, opacity: 0.6 }} />
+                      <div className="h-full rounded-full" style={{ width: `${(cnt / allCoaches.length) * 100}%`, background: STAGE_CONFIG[stage].dot, opacity: 0.6 }} />
                     </div>
                   </div>
                 );
@@ -1811,7 +1905,7 @@ function ProfilePage({ onProfileSave }: { onProfileSave?: () => void }) {
   const save = () => { setPlayer(profile); onProfileSave?.(); setSaved(true); setTimeout(() => setSaved(false), 2000); };
 
   return (
-    <div className="p-6 max-w-[900px] space-y-5">
+    <div className="p-6 max-w-[900px] mx-auto space-y-5">
       {/* Header */}
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-4">
@@ -1895,9 +1989,6 @@ function ProfilePage({ onProfileSave }: { onProfileSave?: () => void }) {
               <Field label="GPA">
                 <Input value={profile.gpa} onChange={upd("gpa")} placeholder="e.g. 3.6" />
               </Field>
-              <Field label="SAT Score">
-                <Input value={profile.satScore} onChange={upd("satScore")} placeholder="e.g. 1280" />
-              </Field>
               <Field label="ACT Score">
                 <Input value={profile.actScore} onChange={upd("actScore")} placeholder="e.g. 27" />
               </Field>
@@ -1977,8 +2068,8 @@ function ProfilePage({ onProfileSave }: { onProfileSave?: () => void }) {
                   <p className="text-xs mt-0.5 max-w-[200px] text-gray-400">{profile.primaryGoal}</p>
                 </div>
               </div>
-              <div className="grid grid-cols-4 gap-4 text-center">
-                {[["Height", profile.height], ["Weight", profile.weight], ["GPA", profile.gpa], ["SAT", profile.satScore]].map(([k, v]) => (
+              <div className="grid grid-cols-3 gap-4 text-center">
+                {[["Height", profile.height], ["Weight", profile.weight], ["GPA", profile.gpa]].map(([k, v]) => (
                   <div key={k} className="p-2 bg-gray-50 rounded-lg">
                     <div className="text-lg font-bold text-gray-800">{v}</div>
                     <div className="text-xs text-gray-400">{k}</div>
@@ -2317,9 +2408,10 @@ function ToastBar() {
 
 // ─── COMPOSE EMAIL MODAL ──────────────────────────────────────────────────────
 
-function ComposeEmailModal({ coach, onClose }: { coach: Coach; onClose: () => void }) {
+function ComposeEmailModal({ coach, onClose, onEmailSent }: { coach: Coach; onClose: () => void; onEmailSent?: (subject: string) => void }) {
+  const tpl = getTemplate();
   const [subject, setSubject] = useState(
-    OUTREACH_TEMPLATE.subject
+    tpl.subject
       .replace(/\{\{PlayerName\}\}/g, getPlayer().name)
       .replace(/\{\{Position\}\}/g, getPlayer().position)
       .replace(/\{\{GraduationYear\}\}/g, getPlayer().graduationClass)
@@ -2328,7 +2420,7 @@ function ComposeEmailModal({ coach, onClose }: { coach: Coach; onClose: () => vo
       .replace(/\{\{School\}\}/g, coach.school)
   );
   const [body, setBody] = useState(
-    OUTREACH_TEMPLATE.body
+    tpl.body
       .replace(/\{\{PlayerName\}\}/g, getPlayer().name)
       .replace(/\{\{Position\}\}/g, getPlayer().position)
       .replace(/\{\{Height\}\}/g, getPlayer().height)
@@ -2339,7 +2431,6 @@ function ComposeEmailModal({ coach, onClose }: { coach: Coach; onClose: () => vo
       .replace(/\{\{Country\}\}/g, getPlayer().nationality)
       .replace(/\{\{CurrentTeam\}\}/g, getPlayer().currentTeam)
       .replace(/\{\{GPA\}\}/g, getPlayer().gpa)
-      .replace(/\{\{SAT\}\}/g, getPlayer().satScore)
       .replace(/\{\{Stats\}\}/g, getPlayer().stats)
       .replace(/\{\{HighlightUrl\}\}/g, getPlayer().highlightUrl)
       .replace(/\{\{FilmUrl\}\}/g, getPlayer().fullFilmUrl)
@@ -2358,6 +2449,7 @@ function ComposeEmailModal({ coach, onClose }: { coach: Coach; onClose: () => vo
     setSending(false);
     if (success) {
       pushToast(`Email sent to ${coach.headCoach} at ${coach.school}`, "success");
+      onEmailSent?.(subject);
       onClose();
     } else {
       pushToast(error || "Failed to send email. Check your Gmail settings.", "error");
@@ -2421,10 +2513,24 @@ const PAGE_TITLES: Record<Page, string> = {
 
 export default function App() {
   const [page, setPage] = useState<Page>("dashboard");
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [profileVersion, setProfileVersion] = useState(0);
+  const [coaches, setCoaches] = useState<Coach[]>(() => loadCoaches());
+  const [trackingVersion, setTrackingVersion] = useState(0);
   const [emailModalCoach, setEmailModalCoach] = useState<Coach | null>(null);
   const [emailConfig, setEmailConfigState] = useState(getEmailConfig());
+  const sidebarTimeoutRef = useRef<number | null>(null);
+  const openSidebar = () => { if (sidebarTimeoutRef.current) clearTimeout(sidebarTimeoutRef.current); setSidebarOpen(true); };
+  const closeSidebar = () => { sidebarTimeoutRef.current = window.setTimeout(() => setSidebarOpen(false), 300); };
+  const onEmailSent = (coachId: string, subject: string) => {
+    const all = loadCoaches();
+    const c = all.find(cf => cf.id === coachId);
+    if (c) addTracking(c, "sent", subject);
+    const updated = all.map(cf => cf.id === coachId ? { ...cf, stage: (cf.stage === "Not Contacted" ? "Sent" : cf.stage) as CRMStage, lastContact: new Date().toLocaleDateString() } : cf);
+    saveCoaches(updated);
+    setCoaches(updated);
+    setTrackingVersion(v => v + 1);
+  };
 
   const cfg = getEmailConfig();
   const gmailConfigured = !!(cfg.user && cfg.pass);
@@ -2437,16 +2543,19 @@ export default function App() {
         <div className="absolute bottom-0 right-0 w-[400px] h-[300px] bg-blue-600/3 rounded-full blur-[100px]" />
       </div>
 
-      <Sidebar key={profileVersion} page={page} setPage={setPage} open={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
+      {/* Hover trigger strip */}
+      <div className="fixed left-0 top-0 h-full w-0.5 z-50" onMouseEnter={openSidebar} />
+
+      <Sidebar key={profileVersion} page={page} setPage={setPage} open={sidebarOpen} onToggle={() => setSidebarOpen(false)} onMouseEnter={openSidebar} onMouseLeave={closeSidebar} />
 
       <div className={`flex-1 flex flex-col min-h-screen transition-all duration-300 ${sidebarOpen ? 'ml-[216px]' : 'ml-0'}`}>
-        <TopBar title={PAGE_TITLES[page]} onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
+        <TopBar title={PAGE_TITLES[page]} onToggleSidebar={openSidebar} />
         <main className={cx("flex-1 overflow-hidden", page === "pipeline" ? "overflow-auto" : "overflow-y-auto")}>
-          {page === "dashboard" && <DashboardPage setPage={setPage} />}
-          {page === "coaches" && <CoachesPage onSendEmail={setEmailModalCoach} />}
+          {page === "dashboard" && <DashboardPage setPage={setPage} coaches={coaches} trackingVersion={trackingVersion} />}
+          {page === "coaches" && <CoachesPage onSendEmail={setEmailModalCoach} coaches={coaches} />}
           {page === "outreach" && <OutreachPage />}
-          {page === "campaigns" && <CampaignsPage onSendEmail={setEmailModalCoach} />}
-          {page === "pipeline" && <PipelinePage />}
+          {page === "campaigns" && <CampaignsPage onSendEmail={setEmailModalCoach} coaches={coaches} onEmailSent={onEmailSent} />}
+          {page === "pipeline" && <PipelinePage coaches={coaches} />}
           {page === "analytics" && <AnalyticsPage />}
           {page === "profile" && <ProfilePage onProfileSave={() => setProfileVersion(v => v + 1)} />}
           {page === "settings" && <SettingsPage setPage={setPage} />}
@@ -2455,7 +2564,7 @@ export default function App() {
 
       {/* Email compose modal */}
       {emailModalCoach && (
-        <ComposeEmailModal coach={emailModalCoach} onClose={() => setEmailModalCoach(null)} />
+        <ComposeEmailModal coach={emailModalCoach} onClose={() => setEmailModalCoach(null)} onEmailSent={(s) => onEmailSent(emailModalCoach.id, s)} />
       )}
 
       {/* Toast */}
