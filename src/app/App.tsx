@@ -1406,6 +1406,20 @@ function OutreachPage() {
 
 // ─── CAMPAIGNS ────────────────────────────────────────────────────────────────
 
+const delay = (ms: number) => new Promise(r => setTimeout(r, ms));
+const INTROS = [
+  "I wanted to reach out personally",
+  "I've been following your program closely",
+  "I wanted to introduce myself",
+  "I hope this email finds you well",
+  "I'm excited to connect with you",
+  "After researching your program",
+  "I wanted to share my passion for your program",
+  "I've admired your coaching from afar",
+  "I'm reaching out because I believe I'd be a great fit",
+  "I wanted to express my interest in your program",
+];
+
 function CampaignsPage({ onSendEmail, coaches, onEmailSent }: { onSendEmail?: (c: Coach) => void; coaches: Coach[]; onEmailSent?: (coachId: string, subject: string) => void }) {
   const [campaigns, setCampaigns] = useState(CAMPAIGNS);
   const [sendingId, setSendingId] = useState<string | null>(null);
@@ -1444,20 +1458,28 @@ function CampaignsPage({ onSendEmail, coaches, onEmailSent }: { onSendEmail?: (c
   const totalPending = campaigns.reduce((s, c) => s + (c.reviewRequired ? c.pendingReview : 0), 0);
 
   const runCampaign = async (campaign: Campaign) => {
+    if (campaign.reviewRequired) { setReviewCampaign(campaign); setReviewIndex(0); return; }
     setSendingId(campaign.id);
-    const targetCoaches = coaches.filter(c => campaign.division.includes(c.division as any));
+    const targets = coaches.filter(c => campaign.division.includes(c.division as any));
+    const sentIds = new Set<string>();
     let sent = 0;
     let failed = 0;
-    for (const coach of targetCoaches) {
+    let variation = 0;
+    for (const coach of targets) {
+      if (sentIds.has(coach.id)) continue;
+      sentIds.add(coach.id);
+      variation++;
       const tpl = getTemplate();
-      const subject = tpl.subject
+      const intro = INTROS[variation % INTROS.length];
+      const introPrefix = variation > 1 ? `[${variation}nd outreach] ` : "";
+      const subject = introPrefix + tpl.subject
         .replace(/\{\{PlayerName\}\}/g, getPlayer().name)
         .replace(/\{\{Position\}\}/g, getPlayer().position)
         .replace(/\{\{GraduationYear\}\}/g, getPlayer().graduationClass)
         .replace(/\{\{Division\}\}/g, coach.division)
         .replace(/\{\{CoachName\}\}/g, coach.headCoach.split(" ").pop() || coach.headCoach)
         .replace(/\{\{School\}\}/g, coach.school);
-      const body = tpl.body
+      let body = tpl.body
         .replace(/\{\{PlayerName\}\}/g, getPlayer().name)
         .replace(/\{\{Position\}\}/g, getPlayer().position)
         .replace(/\{\{Height\}\}/g, getPlayer().height)
@@ -1467,19 +1489,21 @@ function CampaignsPage({ onSendEmail, coaches, onEmailSent }: { onSendEmail?: (c
         .replace(/\{\{GraduationYear\}\}/g, getPlayer().graduationClass)
         .replace(/\{\{Country\}\}/g, getPlayer().nationality)
         .replace(/\{\{CurrentTeam\}\}/g, getPlayer().currentTeam)
-      .replace(/\{\{GPA\}\}/g, getPlayer().gpa)
-      .replace(/\{\{Stats\}\}/g, getPlayer().stats)
-      .replace(/\{\{HighlightUrl\}\}/g, getPlayer().highlightUrl)
+        .replace(/\{\{GPA\}\}/g, getPlayer().gpa)
+        .replace(/\{\{Stats\}\}/g, getPlayer().stats)
+        .replace(/\{\{HighlightUrl\}\}/g, getPlayer().highlightUrl)
         .replace(/\{\{FilmUrl\}\}/g, getPlayer().fullFilmUrl)
         .replace(/\{\{CoachName\}\}/g, coach.headCoach.split(" ").pop() || coach.headCoach)
         .replace(/\{\{School\}\}/g, coach.school)
         .replace(/\{\{Conference\}\}/g, coach.conference)
         .replace(/\{\{Division\}\}/g, coach.division);
+      if (variation > 1) body = `${intro}\n\n${body}`;
       const html = body.replace(/\n/g, "<br>");
       const { success } = await sendEmail(coach.email, subject, html);
       if (success) { sent++; onEmailSent?.(coach.id, subject); }
       else failed++;
       setCampaigns(prev => prev.map(c => c.id === campaign.id ? { ...c, sent: c.sent + 1 } : c));
+      if (targets.length > 1) await delay(45000 + Math.random() * 45000);
     }
     setSendingId(null);
     pushToast(`Campaign "${campaign.name}" complete — ${sent} sent, ${failed} failed`, failed > 0 ? "error" : "success");
@@ -1535,9 +1559,14 @@ function CampaignsPage({ onSendEmail, coaches, onEmailSent }: { onSendEmail?: (c
                     </div>
                   </div>
                   <div className="flex items-center gap-1.5 flex-shrink-0">
-                    {c.status === "draft" && (
+                    {c.status === "draft" && !c.reviewRequired && (
                       <Btn variant="primary" size="sm" onClick={() => runCampaign(c)} disabled={sendingId === c.id}>
                         {sendingId === c.id ? <><RefreshCw size={12} className="animate-spin" /> Sending...</> : <><Send size={12} /> Run Campaign</>}
+                      </Btn>
+                    )}
+                    {c.status === "draft" && c.reviewRequired && (
+                      <Btn variant="primary" size="sm" onClick={() => { setReviewCampaign(c); setReviewIndex(0); }}>
+                        <Send size={12} /> Review & Send
                       </Btn>
                     )}
                     {(c.status === "active" || c.status === "paused") && (
@@ -1605,13 +1634,15 @@ function CampaignsPage({ onSendEmail, coaches, onEmailSent }: { onSendEmail?: (c
         const c = reviewCampaign;
         const coach = targetCoaches(c)[reviewIndex];
         const subj = resolveSubject(c, coach);
-        const body = resolveBody(coach);
+        let body = resolveBody(coach);
+        if (reviewIndex > 0) body = `${INTROS[reviewIndex % INTROS.length]} — ${reviewIndex > 0 ? `follow-up #${reviewIndex + 1}: ` : ""}${body}`;
         const handleApprove = async () => {
           setSendingReview(true);
           const { success } = await sendEmail(coach.email, subj, body.replace(/\n/g, "<br>"));
           setSendingReview(false);
           if (success) {
             pushToast(`Sent to ${coach.headCoach} at ${coach.school}`, "success");
+            onEmailSent?.(coach.id, subj);
             setCampaigns((prev: Campaign[]) => prev.map(pc => pc.id === c.id ? { ...pc, sent: pc.sent + 1, pendingReview: Math.max(0, pc.pendingReview - 1) } : pc));
             const next = targetCoaches(c)[reviewIndex + 1];
             if (next) setReviewIndex(i => i + 1); else setReviewCampaign(null);
@@ -2551,7 +2582,7 @@ export default function App() {
       <div className={`flex-1 flex flex-col min-h-screen transition-all duration-300 ${sidebarOpen ? 'ml-[216px]' : 'ml-0'}`}>
         <TopBar title={PAGE_TITLES[page]} onToggleSidebar={openSidebar} />
         <main className={cx("flex-1 overflow-hidden", page === "pipeline" ? "overflow-auto" : "overflow-y-auto")}>
-          {page === "dashboard" && <DashboardPage setPage={setPage} coaches={coaches} trackingVersion={trackingVersion} />}
+          {page === "dashboard" && <DashboardPage key={trackingVersion} setPage={setPage} coaches={coaches} trackingVersion={trackingVersion} />}
           {page === "coaches" && <CoachesPage onSendEmail={setEmailModalCoach} coaches={coaches} />}
           {page === "outreach" && <OutreachPage />}
           {page === "campaigns" && <CampaignsPage onSendEmail={setEmailModalCoach} coaches={coaches} onEmailSent={onEmailSent} />}
