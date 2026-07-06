@@ -1451,7 +1451,7 @@ function CampaignsPage({ onSendEmail }: { onSendEmail?: (c: Coach) => void }) {
     <div className="p-6 max-w-[1100px] space-y-5">
       {/* Review banner */}
       {totalPending > 0 && (
-        <div className="flex items-center justify-between px-4 py-3 rounded-xl bg-yellow-500/8 border border-yellow-500/20">
+        <div id="pending-review" className="flex items-center justify-between px-4 py-3 rounded-xl bg-yellow-500/8 border border-yellow-500/20">
           <div className="flex items-center gap-3">
             <AlertCircle size={14} className="text-yellow-400 flex-shrink-0" />
             <div>
@@ -1459,7 +1459,7 @@ function CampaignsPage({ onSendEmail }: { onSendEmail?: (c: Coach) => void }) {
               <p className="text-xs text-yellow-400/60 mt-0.5">Campaigns are paused until you approve each draft. Nothing sends automatically.</p>
             </div>
           </div>
-          <Btn variant="outline" size="sm">Review Drafts <ChevronRight size={11} /></Btn>
+          <Btn variant="outline" size="sm" onClick={() => document.getElementById("pending-review")?.scrollIntoView({ behavior: "smooth", block: "start" })}>Review Drafts <ChevronRight size={11} /></Btn>
         </div>
       )}
 
@@ -1553,7 +1553,7 @@ function CampaignsPage({ onSendEmail }: { onSendEmail?: (c: Coach) => void }) {
                       <AlertCircle size={12} />
                       {c.pendingReview} drafts waiting for your approval before they are sent
                     </div>
-                    <Btn variant="outline" size="xs">Review & Approve <ArrowRight size={10} /></Btn>
+                    <Btn variant="outline" size="xs" onClick={() => pushToast("Draft review coming soon — for now, click Run Campaign to send directly", "success")}>Review & Approve <ArrowRight size={10} /></Btn>
                   </div>
                 </>
               )}
