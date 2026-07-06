@@ -26,6 +26,13 @@ type CRMStage = "Not Contacted" | "Draft Ready" | "Sent" | "Opened" | "Replied" 
 
 type CampaignStatus = "active" | "paused" | "draft" | "completed";
 
+interface StaffMember {
+  name: string;
+  role: string;
+  email: string;
+  phone?: string;
+}
+
 interface Coach {
   id: string;
   school: string;
@@ -33,6 +40,7 @@ interface Coach {
   conference: string;
   state: string;
   headCoach: string;
+  staff: StaffMember[];
   assistants: string[];
   recruitingCoordinator?: string;
   email: string;
@@ -173,27 +181,209 @@ function loadCoaches(): Coach[] { try { const d = localStorage.getItem(storageKe
 function saveCoaches(c: Coach[]) { localStorage.setItem(storageKey("coaches"), JSON.stringify(c)); }
 function addTracking(coach: Coach, type: TrackingEntry["type"], subject: string) { const log: TrackingEntry[] = JSON.parse(localStorage.getItem(storageKey("tracking")) || "[]"); log.unshift({ id: Date.now().toString(), coachId: coach.id, coachName: coach.headCoach, school: coach.school, timestamp: new Date().toISOString(), type, subject }); localStorage.setItem(storageKey("tracking"), JSON.stringify(log.slice(0, 500))); }
 function getTrackingLog(): TrackingEntry[] { try { const d = localStorage.getItem(storageKey("tracking")); if (d) return JSON.parse(d); } catch {} return []; }
+function getStaffEmails(coach: Coach): string { return coach.staff.map(s => s.email).filter(Boolean).join(","); }
 const DEFAULT_COACHES: Coach[] = [
-  // NCAA D1
-  { id: "d1-1", school: "Boston University", division: "NCAA D1", conference: "Patriot League", state: "MA", headCoach: "Joe Jones", assistants: ["Mike Quinn", "Al Paul", "Matt Brady", "Khalil Griffith", "Matt Bielenda"], email: "jjones11@bu.edu", phone: "(617) 358-0749", athleticsUrl: "https://goterriers.com", rosterSize: 14, internationalPlayers: 3, graduatingSeniors: 3, positionsNeeded: ["PG", "SG"], scholarshipLevel: "Full", stage: "Not Contacted", favorited: false, notes: "", region: "Northeast" },
-  { id: "d1-2", school: "Santa Clara University", division: "NCAA D1", conference: "WCC", state: "CA", headCoach: "Herb Sendek", assistants: ["Jason Ludwig", "Ryan Madry", "Will Burkett", "Jackson Gion", "Mitch Smith", "Alan Guillou", "Caine Purnell"], email: "", phone: "408-554-4122", athleticsUrl: "https://santaclarabroncos.com", rosterSize: 14, internationalPlayers: 2, graduatingSeniors: 3, positionsNeeded: ["PG", "SG", "SF"], scholarshipLevel: "Full", stage: "Not Contacted", favorited: false, notes: "", region: "West Coast" },
-  { id: "d1-3", school: "Loyola Marymount University", division: "NCAA D1", conference: "WCC", state: "CA", headCoach: "Stan Johnson", assistants: ["Ricky Muench", "Lorenzo Romar", "Louis Wilson", "Mark Phelps", "Damari Milstead", "Josh Mandell"], email: "", phone: "", athleticsUrl: "https://lmulions.com", rosterSize: 14, internationalPlayers: 3, graduatingSeniors: 2, positionsNeeded: ["PG", "SG", "SF"], scholarshipLevel: "Full", stage: "Not Contacted", favorited: false, notes: "", region: "West Coast" },
-  { id: "d1-4", school: "Holy Cross", division: "NCAA D1", conference: "Patriot League", state: "MA", headCoach: "Dave Paulsen", assistants: ["Ted Rawlings", "Sydney Armand", "Colin Richey"], email: "", phone: "508-793-2323", athleticsUrl: "https://goholycross.com", rosterSize: 14, internationalPlayers: 2, graduatingSeniors: 3, positionsNeeded: ["PG", "SG"], scholarshipLevel: "Full", stage: "Not Contacted", favorited: false, notes: "", region: "Northeast" },
-  { id: "d1-5", school: "Bucknell University", division: "NCAA D1", conference: "Patriot League", state: "PA", headCoach: "John Griffin III", assistants: ["Branden McDonald", "Jesse Flannery", "Tyler Simms", "Mike Walley", "Pat Behan", "Justin McKenna"], email: "", phone: "570-577-1390", athleticsUrl: "https://bucknellbison.com", rosterSize: 14, internationalPlayers: 2, graduatingSeniors: 3, positionsNeeded: ["SG", "SF", "PF"], scholarshipLevel: "Full", stage: "Not Contacted", favorited: false, notes: "", region: "Northeast" },
-  // NCAA D2
-  { id: "d2-1", school: "Point Loma Nazarene University", division: "NCAA D2", conference: "PacWest", state: "CA", headCoach: "", assistants: ["Tobin Karlberg"], email: "tkarlber@pointloma.edu", phone: "", athleticsUrl: "https://plnusealions.com", rosterSize: 12, internationalPlayers: 4, graduatingSeniors: 2, positionsNeeded: ["PG", "SG", "SF"], scholarshipLevel: "Partial", stage: "Not Contacted", favorited: false, notes: "", region: "West Coast" },
-  // NAIA
-  { id: "naia-1", school: "College of Idaho", division: "NAIA", conference: "Cascade Collegiate", state: "ID", headCoach: "Colby Blaine", assistants: ["Emanuel Morgan", "Jacob McLeod"], email: "cblaine@collegeofidaho.edu", phone: "208-459-5044", athleticsUrl: "https://yoteathletics.com", rosterSize: 13, internationalPlayers: 3, graduatingSeniors: 2, positionsNeeded: ["PG", "SG"], scholarshipLevel: "Full", stage: "Not Contacted", favorited: false, notes: "", region: "Pacific Northwest" },
-  { id: "naia-2", school: "Lewis-Clark State College", division: "NAIA", conference: "Cascade Collegiate", state: "ID", headCoach: "Austin Johnson", assistants: ["Caden Lewis", "CJ Johnson", "Casey Cappo"], email: "abjohnson@lcsc.edu", phone: "208-792-2865", athleticsUrl: "https://lcwarriors.com", rosterSize: 13, internationalPlayers: 3, graduatingSeniors: 2, positionsNeeded: ["PG", "SG", "SF"], scholarshipLevel: "Full", stage: "Not Contacted", favorited: false, notes: "", region: "Pacific Northwest" },
-  { id: "naia-3", school: "Westmont College", division: "NAIA", conference: "GSAC", state: "CA", headCoach: "Justin Leslie", assistants: ["Booker Harris", "Kalen Eddings"], email: "jleslie@westmont.edu", phone: "", athleticsUrl: "https://athletics.westmont.edu", rosterSize: 13, internationalPlayers: 3, graduatingSeniors: 2, positionsNeeded: ["PG", "SG", "SF"], scholarshipLevel: "Full", stage: "Not Contacted", favorited: false, notes: "", region: "West Coast" },
-  { id: "naia-4", school: "Bethel University (IN)", division: "NAIA", conference: "Crossroads League", state: "IN", headCoach: "David Osborn", assistants: ["Aaron Cufr"], email: "david.osborn@betheluniversity.edu", phone: "", athleticsUrl: "https://bethelpilots.com", rosterSize: 13, internationalPlayers: 2, graduatingSeniors: 3, positionsNeeded: ["PG", "SG"], scholarshipLevel: "Full", stage: "Not Contacted", favorited: false, notes: "", region: "Midwest" },
-  { id: "naia-5", school: "Indiana Wesleyan University", division: "NAIA", conference: "Crossroads League", state: "IN", headCoach: "Greg Tonagel", assistants: ["Jeff Clark", "Caleb Muthiah", "Brayton Cain"], email: "greg.tonagel@indwes.edu", phone: "765-677-2320", athleticsUrl: "https://iwuwildcats.com", rosterSize: 13, internationalPlayers: 2, graduatingSeniors: 3, positionsNeeded: ["PG", "SG", "SF"], scholarshipLevel: "Full", stage: "Not Contacted", favorited: false, notes: "", region: "Midwest" },
-  { id: "naia-6", school: "Spring Arbor University", division: "NAIA", conference: "Crossroads League", state: "MI", headCoach: "John Williams", assistants: ["Alex Scott", "Terrence Willis"], email: "john.williams2@arbor.edu", phone: "517-262-4469", athleticsUrl: "https://arbor.edu/athletics", rosterSize: 13, internationalPlayers: 2, graduatingSeniors: 2, positionsNeeded: ["PG", "SG", "SF"], scholarshipLevel: "Full", stage: "Not Contacted", favorited: false, notes: "", region: "Midwest" },
-  { id: "naia-7", school: "Loyola University New Orleans", division: "NAIA", conference: "Southern States", state: "LA", headCoach: "Trey Lindsey", assistants: ["Daniel Venzant"], email: "cllindse@loyno.edu", phone: "(504) 864-7398", athleticsUrl: "https://loyolawolfpack.com", rosterSize: 13, internationalPlayers: 3, graduatingSeniors: 2, positionsNeeded: ["PG", "SG"], scholarshipLevel: "Full", stage: "Not Contacted", favorited: false, notes: "", region: "South" },
-  // NJCAA D1
-  { id: "jco-1", school: "Salt Lake Community College", division: "NJCAA D1", conference: "Scenic West", state: "UT", headCoach: "Dave Rice", assistants: ["Dave Hammer"], email: "drice32@slcc.edu", phone: "", athleticsUrl: "https://slccbruins.com", rosterSize: 15, internationalPlayers: 4, graduatingSeniors: 4, positionsNeeded: ["PG", "SG", "SF"], scholarshipLevel: "Full", stage: "Not Contacted", favorited: false, notes: "", region: "Mountain" },
-  { id: "jco-2", school: "Snow College", division: "NJCAA D1", conference: "Scenic West", state: "UT", headCoach: "Andrew May", assistants: ["Josh Perkins", "Ethan Kahn"], email: "andrew.may@snow.edu", phone: "435-283-7033", athleticsUrl: "https://snowbadgers.com", rosterSize: 15, internationalPlayers: 3, graduatingSeniors: 4, positionsNeeded: ["PG", "SG", "SF"], scholarshipLevel: "Full", stage: "Not Contacted", favorited: false, notes: "", region: "Mountain" },
-  { id: "jco-3", school: "Navarro College", division: "NJCAA D1", conference: "NTJCAC", state: "TX", headCoach: "Hunter Jenkins", assistants: ["Troy Potts", "Xavian Jimenez", "Beau Martin"], email: "basketball@navarrocollege.edu", phone: "", athleticsUrl: "https://navarrocollege.edu/athletics", rosterSize: 15, internationalPlayers: 4, graduatingSeniors: 5, positionsNeeded: ["PG", "SG", "SF", "PF"], scholarshipLevel: "Full", stage: "Not Contacted", favorited: false, notes: "", region: "South" },
+  // ── NCAA D1 ────────────────────────────────────────────────────────────────
+  {
+    id: "d1-1", school: "Boston University", division: "NCAA D1", conference: "Patriot League", state: "MA",
+    headCoach: "Joe Jones", email: "jjones11@bu.edu", phone: "(617) 358-0749",
+    staff: [
+      { name: "Joe Jones", role: "Head Coach", email: "jjones11@bu.edu", phone: "(617) 358-0749" },
+      { name: "Mike Quinn", role: "Associate Head Coach", email: "quinnmc@bu.edu" },
+      { name: "Al Paul", role: "Assistant Coach", email: "ampaul12@bu.edu" },
+      { name: "Matt Brady", role: "Assistant Coach", email: "mbrady10@bu.edu" },
+      { name: "Khalil Griffith", role: "Director of Basketball Operations", email: "kgriff@bu.edu" },
+      { name: "Matt Bielenda", role: "Video Coordinator", email: "bielenda@bu.edu" },
+    ],
+    assistants: ["Mike Quinn", "Al Paul", "Matt Brady", "Khalil Griffith", "Matt Bielenda"],
+    athleticsUrl: "https://goterriers.com", rosterSize: 14, internationalPlayers: 3, graduatingSeniors: 3,
+    positionsNeeded: ["PG", "SG"], scholarshipLevel: "Full", stage: "Not Contacted", favorited: false, notes: "", region: "Northeast",
+  },
+  {
+    id: "d1-2", school: "Santa Clara University", division: "NCAA D1", conference: "WCC", state: "CA",
+    headCoach: "Jason Ludwig", email: "jludwig@scu.edu", phone: "408-554-2339",
+    staff: [
+      { name: "Jason Ludwig", role: "Associate Head Coach", email: "jludwig@scu.edu", phone: "408-554-2339" },
+      { name: "Ryan Madry", role: "Associate Head Coach", email: "cmadry@scu.edu", phone: "408-554-4692" },
+      { name: "Will Burkett", role: "Assistant Coach", email: "wburkett@scu.edu", phone: "408-554-4691" },
+      { name: "Jackson Gion", role: "Assistant Coach", email: "jgion@scu.edu", phone: "408-554-4566" },
+      { name: "Mitch Smith", role: "Assistant Coach", email: "mlsmith@scu.edu" },
+      { name: "Alan Guillou", role: "Director of Operations", email: "aguillou@scu.edu", phone: "408-554-4640" },
+    ],
+    assistants: ["Jason Ludwig", "Ryan Madry", "Will Burkett", "Jackson Gion", "Mitch Smith", "Alan Guillou"],
+    athleticsUrl: "https://santaclarabroncos.com", rosterSize: 14, internationalPlayers: 2, graduatingSeniors: 3,
+    positionsNeeded: ["PG", "SG", "SF"], scholarshipLevel: "Full", stage: "Not Contacted", favorited: false, notes: "", region: "West Coast",
+  },
+  {
+    id: "d1-3", school: "Loyola Marymount University", division: "NCAA D1", conference: "WCC", state: "CA",
+    headCoach: "Ricky Muench", email: "Richard.Muench@lmu.edu",
+    staff: [
+      { name: "Ricky Muench", role: "Assistant Coach", email: "Richard.Muench@lmu.edu" },
+      { name: "Damari Milstead", role: "Director of Basketball Operations", email: "Damari.Milstead@lmu.edu" },
+      { name: "Josh Mandell", role: "Video Coordinator", email: "Joshua.Mandell@lmu.edu" },
+    ],
+    assistants: ["Ricky Muench", "Damari Milstead", "Josh Mandell"],
+    athleticsUrl: "https://lmulions.com", rosterSize: 14, internationalPlayers: 3, graduatingSeniors: 2,
+    positionsNeeded: ["PG", "SG", "SF"], scholarshipLevel: "Full", stage: "Not Contacted", favorited: false, notes: "", region: "West Coast",
+  },
+  {
+    id: "d1-4", school: "Holy Cross", division: "NCAA D1", conference: "Patriot League", state: "MA",
+    headCoach: "Ted Rawlings", email: "trawlings@holycross.edu", phone: "508-793-2323",
+    staff: [
+      { name: "Ted Rawlings", role: "Assistant Coach", email: "trawlings@holycross.edu", phone: "508-793-2323" },
+      { name: "Sydney Armand", role: "Assistant Coach", email: "sarmand@holycross.edu", phone: "508-793-2323" },
+      { name: "Colin Richey", role: "Assistant Coach", email: "crichey@holycross.edu", phone: "508-793-2323" },
+    ],
+    assistants: ["Ted Rawlings", "Sydney Armand", "Colin Richey"],
+    athleticsUrl: "https://goholycross.com", rosterSize: 14, internationalPlayers: 2, graduatingSeniors: 3,
+    positionsNeeded: ["PG", "SG"], scholarshipLevel: "Full", stage: "Not Contacted", favorited: false, notes: "", region: "Northeast",
+  },
+  {
+    id: "d1-5", school: "Bucknell University", division: "NCAA D1", conference: "Patriot League", state: "PA",
+    headCoach: "Branden McDonald", email: "bm036@bucknell.edu", phone: "570-577-3072",
+    staff: [
+      { name: "Branden McDonald", role: "Assistant Coach", email: "bm036@bucknell.edu", phone: "570-577-3072" },
+      { name: "Jesse Flannery", role: "Assistant Coach", email: "jsf020@bucknell.edu", phone: "570-577-3552" },
+      { name: "Tyler Simms", role: "Assistant Coach", email: "tjs036@bucknell.edu" },
+      { name: "Mike Walley", role: "Director of Basketball Operations / Assistant Coach", email: "mw042@bucknell.edu", phone: "570-577-1358" },
+      { name: "Justin McKenna", role: "Director of Basketball Performance", email: "jm100@bucknell.edu", phone: "570-577-2219" },
+    ],
+    assistants: ["Branden McDonald", "Jesse Flannery", "Tyler Simms", "Mike Walley", "Justin McKenna"],
+    athleticsUrl: "https://bucknellbison.com", rosterSize: 14, internationalPlayers: 2, graduatingSeniors: 3,
+    positionsNeeded: ["SG", "SF", "PF"], scholarshipLevel: "Full", stage: "Not Contacted", favorited: false, notes: "", region: "Northeast",
+  },
+  // ── NCAA D2 ────────────────────────────────────────────────────────────────
+  {
+    id: "d2-1", school: "Point Loma Nazarene University", division: "NCAA D2", conference: "PacWest", state: "CA",
+    headCoach: "Tobin Karlberg", email: "tkarlber@pointloma.edu",
+    staff: [
+      { name: "Tobin Karlberg", role: "Assistant Coach", email: "tkarlber@pointloma.edu" },
+    ],
+    assistants: ["Tobin Karlberg"],
+    athleticsUrl: "https://plnusealions.com", rosterSize: 12, internationalPlayers: 4, graduatingSeniors: 2,
+    positionsNeeded: ["PG", "SG", "SF"], scholarshipLevel: "Partial", stage: "Not Contacted", favorited: false, notes: "", region: "West Coast",
+  },
+  // ── NAIA ────────────────────────────────────────────────────────────────────
+  {
+    id: "naia-1", school: "College of Idaho", division: "NAIA", conference: "Cascade Collegiate", state: "ID",
+    headCoach: "Colby Blaine", email: "cblaine@collegeofidaho.edu", phone: "208-459-5044",
+    staff: [
+      { name: "Colby Blaine", role: "Head Coach", email: "cblaine@collegeofidaho.edu", phone: "208-459-5044" },
+      { name: "Emanuel Morgan", role: "Assistant Coach", email: "mmorgan@collegeofidaho.edu" },
+      { name: "Jacob McLeod", role: "Assistant Coach", email: "jmcleod@collegeofidaho.edu" },
+    ],
+    assistants: ["Emanuel Morgan", "Jacob McLeod"],
+    athleticsUrl: "https://yoteathletics.com", rosterSize: 13, internationalPlayers: 3, graduatingSeniors: 2,
+    positionsNeeded: ["PG", "SG"], scholarshipLevel: "Full", stage: "Not Contacted", favorited: false, notes: "", region: "Pacific Northwest",
+  },
+  {
+    id: "naia-2", school: "Lewis-Clark State College", division: "NAIA", conference: "Cascade Collegiate", state: "ID",
+    headCoach: "Austin Johnson", email: "abjohnson@lcsc.edu", phone: "208-792-2865",
+    staff: [
+      { name: "Austin Johnson", role: "Head Coach", email: "abjohnson@lcsc.edu", phone: "208-792-2865" },
+      { name: "Caden Lewis", role: "Assistant Coach", email: "cjlewis@lcsc.edu", phone: "(208) 792-2271" },
+      { name: "CJ Johnson", role: "Assistant Coach", email: "" },
+      { name: "Casey Cappo", role: "Assistant Coach", email: "ccappo@lcsc.edu", phone: "(208) 792-2271" },
+    ],
+    assistants: ["Caden Lewis", "CJ Johnson", "Casey Cappo"],
+    athleticsUrl: "https://lcwarriors.com", rosterSize: 13, internationalPlayers: 3, graduatingSeniors: 2,
+    positionsNeeded: ["PG", "SG", "SF"], scholarshipLevel: "Full", stage: "Not Contacted", favorited: false, notes: "", region: "Pacific Northwest",
+  },
+  {
+    id: "naia-3", school: "Westmont College", division: "NAIA", conference: "GSAC", state: "CA",
+    headCoach: "Justin Leslie", email: "jleslie@westmont.edu",
+    staff: [
+      { name: "Justin Leslie", role: "Head Coach", email: "jleslie@westmont.edu" },
+      { name: "Booker Harris", role: "Assistant Coach", email: "bharris@westmont.edu" },
+      { name: "Kalen Eddings", role: "Assistant Coach", email: "keddings@westmont.edu" },
+    ],
+    assistants: ["Booker Harris", "Kalen Eddings"],
+    athleticsUrl: "https://athletics.westmont.edu", rosterSize: 13, internationalPlayers: 3, graduatingSeniors: 2,
+    positionsNeeded: ["PG", "SG", "SF"], scholarshipLevel: "Full", stage: "Not Contacted", favorited: false, notes: "", region: "West Coast",
+  },
+  {
+    id: "naia-4", school: "Bethel University (IN)", division: "NAIA", conference: "Crossroads League", state: "IN",
+    headCoach: "David Osborn", email: "david.osborn@betheluniversity.edu",
+    staff: [
+      { name: "David Osborn", role: "Head Coach", email: "david.osborn@betheluniversity.edu" },
+      { name: "Aaron Cufr", role: "Assistant Coach", email: "aaron.cufr@betheluniversity.edu" },
+    ],
+    assistants: ["Aaron Cufr"],
+    athleticsUrl: "https://bethelpilots.com", rosterSize: 13, internationalPlayers: 2, graduatingSeniors: 3,
+    positionsNeeded: ["PG", "SG"], scholarshipLevel: "Full", stage: "Not Contacted", favorited: false, notes: "", region: "Midwest",
+  },
+  {
+    id: "naia-5", school: "Indiana Wesleyan University", division: "NAIA", conference: "Crossroads League", state: "IN",
+    headCoach: "Greg Tonagel", email: "greg.tonagel@indwes.edu", phone: "765-677-2320",
+    staff: [
+      { name: "Greg Tonagel", role: "Head Coach", email: "greg.tonagel@indwes.edu", phone: "765-677-2320" },
+      { name: "Jeff Clark", role: "Associate Head Coach", email: "jeff.clark@indwes.edu", phone: "765-677-2989" },
+      { name: "Caleb Muthiah", role: "Assistant Coach", email: "caleb.muthiah@indwes.edu" },
+      { name: "Brayton Cain", role: "Graduate Assistant", email: "brayton.cain@indwes.edu" },
+    ],
+    assistants: ["Jeff Clark", "Caleb Muthiah", "Brayton Cain"],
+    athleticsUrl: "https://iwuwildcats.com", rosterSize: 13, internationalPlayers: 2, graduatingSeniors: 3,
+    positionsNeeded: ["PG", "SG", "SF"], scholarshipLevel: "Full", stage: "Not Contacted", favorited: false, notes: "", region: "Midwest",
+  },
+  {
+    id: "naia-6", school: "Spring Arbor University", division: "NAIA", conference: "Crossroads League", state: "MI",
+    headCoach: "John Williams", email: "john.williams2@arbor.edu", phone: "517-262-4469",
+    staff: [
+      { name: "John Williams", role: "Head Coach", email: "john.williams2@arbor.edu", phone: "517-262-4469" },
+      { name: "Alex Scott", role: "Assistant Coach", email: "alexandria.scott@arbor.edu" },
+      { name: "Terrence Willis", role: "Assistant Coach", email: "terrence.willis@arbor.edu" },
+    ],
+    assistants: ["Alex Scott", "Terrence Willis"],
+    athleticsUrl: "https://arbor.edu/athletics", rosterSize: 13, internationalPlayers: 2, graduatingSeniors: 2,
+    positionsNeeded: ["PG", "SG", "SF"], scholarshipLevel: "Full", stage: "Not Contacted", favorited: false, notes: "", region: "Midwest",
+  },
+  {
+    id: "naia-7", school: "Loyola University New Orleans", division: "NAIA", conference: "Southern States", state: "LA",
+    headCoach: "Trey Lindsey", email: "cllindse@loyno.edu", phone: "(504) 864-7398",
+    staff: [
+      { name: "Trey Lindsey", role: "Head Coach", email: "cllindse@loyno.edu", phone: "(504) 864-7398" },
+      { name: "Daniel Venzant", role: "Assistant Coach", email: "dtvenzan@loyno.edu", phone: "(504) 864-7398" },
+    ],
+    assistants: ["Daniel Venzant"],
+    athleticsUrl: "https://loyolawolfpack.com", rosterSize: 13, internationalPlayers: 3, graduatingSeniors: 2,
+    positionsNeeded: ["PG", "SG"], scholarshipLevel: "Full", stage: "Not Contacted", favorited: false, notes: "", region: "South",
+  },
+  // ── NJCAA D1 ───────────────────────────────────────────────────────────────
+  {
+    id: "jco-1", school: "Salt Lake Community College", division: "NJCAA D1", conference: "Scenic West", state: "UT",
+    headCoach: "Dave Rice", email: "drice32@slcc.edu",
+    staff: [
+      { name: "Dave Rice", role: "Head Coach", email: "drice32@slcc.edu" },
+    ],
+    assistants: ["Dave Rice"],
+    athleticsUrl: "https://slccbruins.com", rosterSize: 15, internationalPlayers: 4, graduatingSeniors: 4,
+    positionsNeeded: ["PG", "SG", "SF"], scholarshipLevel: "Full", stage: "Not Contacted", favorited: false, notes: "", region: "Mountain",
+  },
+  {
+    id: "jco-2", school: "Snow College", division: "NJCAA D1", conference: "Scenic West", state: "UT",
+    headCoach: "Andrew May", email: "andrew.may@snow.edu", phone: "435-283-7033",
+    staff: [
+      { name: "Andrew May", role: "Head Coach", email: "andrew.may@snow.edu", phone: "435-283-7033" },
+      { name: "Josh Perkins", role: "Assistant Coach", email: "josh.perkins1@snow.edu" },
+      { name: "Ethan Kahn", role: "Assistant Coach", email: "ethan.kahn@snow.edu" },
+    ],
+    assistants: ["Josh Perkins", "Ethan Kahn"],
+    athleticsUrl: "https://snowbadgers.com", rosterSize: 15, internationalPlayers: 3, graduatingSeniors: 4,
+    positionsNeeded: ["PG", "SG", "SF"], scholarshipLevel: "Full", stage: "Not Contacted", favorited: false, notes: "", region: "Mountain",
+  },
+  {
+    id: "jco-3", school: "Navarro College", division: "NJCAA D1", conference: "NTJCAC", state: "TX",
+    headCoach: "Hunter Jenkins", email: "basketball@navarrocollege.edu",
+    staff: [
+      { name: "Hunter Jenkins", role: "Head Coach", email: "basketball@navarrocollege.edu" },
+      { name: "Troy Potts", role: "Assistant Coach", email: "troy.potts@navarrocollege.edu" },
+      { name: "Xavian Jimenez", role: "Assistant Coach", email: "Xavian.Jimenez@NavarroCollege.edu" },
+      { name: "Beau Martin", role: "Assistant Coach", email: "basketball@navarrocollege.edu" },
+    ],
+    assistants: ["Troy Potts", "Xavian Jimenez", "Beau Martin"],
+    athleticsUrl: "https://navarrocollege.edu/athletics", rosterSize: 15, internationalPlayers: 4, graduatingSeniors: 5,
+    positionsNeeded: ["PG", "SG", "SF", "PF"], scholarshipLevel: "Full", stage: "Not Contacted", favorited: false, notes: "", region: "South",
+  },
 ];
 
 const CAMPAIGNS: Campaign[] = [
@@ -725,7 +915,7 @@ function DashboardPage({ setPage, coaches, trackingVersion }: { setPage: (p: Pag
 
 const EMPTY_COACH: Omit<Coach, "id"> = {
   school: "", division: "NCAA D1", conference: "", state: "",
-  headCoach: "", assistants: [], recruitingCoordinator: "",
+  headCoach: "", staff: [], assistants: [], recruitingCoordinator: "",
   email: "", phone: "", athleticsUrl: "", recruitingUrl: "",
   rosterSize: 13, internationalPlayers: 0, graduatingSeniors: 3,
   positionsNeeded: [], scholarshipLevel: "Full",
@@ -751,7 +941,7 @@ function AddProgramModal({ onClose, onSave }: { onClose: () => void; onSave: (c:
   const handleSave = () => {
     if (!form.school.trim()) { setError("School name is required."); return; }
     if (!form.email.trim()) { setError("Email is required."); return; }
-    onSave({ ...form, id: `manual-${Date.now()}`, assistants: form.assistants });
+    onSave({ ...form, id: `manual-${Date.now()}`, staff: form.staff.length ? form.staff : [{ name: form.headCoach || "Staff", role: "Staff", email: form.email }], assistants: form.assistants });
     onClose();
   };
 
@@ -967,7 +1157,7 @@ function CoachesPage({ onSendEmail, coaches: propCoaches }: { onSendEmail?: (c: 
   const filtered = coaches.filter(c => {
     const q = search.toLowerCase();
     return (
-      (!q || c.school.toLowerCase().includes(q) || c.headCoach.toLowerCase().includes(q) || c.conference.toLowerCase().includes(q)) &&
+      (!q || c.school.toLowerCase().includes(q) || c.staff.some(s => s.name.toLowerCase().includes(q)) || c.conference.toLowerCase().includes(q)) &&
       (divFilter === "All" || c.division === divFilter) &&
       (stateFilter === "All" || c.state === stateFilter) &&
       (posFilter === "All" || c.positionsNeeded.includes(posFilter)) &&
@@ -1037,6 +1227,7 @@ function CoachesPage({ onSendEmail, coaches: propCoaches }: { onSendEmail?: (c: 
           conference: col(row, "conference"),
           state: col(row, "state"),
           headCoach: col(row, "head coach"),
+          staff: [{ name: col(row, "head coach") || "Staff", role: "Staff", email }],
           assistants: [],
           recruitingCoordinator: "",
           email,
@@ -1218,15 +1409,15 @@ function CoachesPage({ onSendEmail, coaches: propCoaches }: { onSendEmail?: (c: 
               {/* Staff */}
               <div>
                 <div className="text-[10px] font-semibold text-white/25 uppercase tracking-[0.08em] mb-2.5">Coaching Staff</div>
-                <div className="space-y-1.5">
-                  {[
-                    { role: "Head Coach", name: selected.headCoach },
-                    ...(selected.recruitingCoordinator ? [{ role: "Recruiting Coord.", name: selected.recruitingCoordinator }] : []),
-                    ...selected.assistants.map(a => ({ role: "Assistant", name: a })),
-                  ].map(({ role, name }, i) => (
-                    <div key={i} className="flex justify-between items-center text-[12px]">
-                      <span className="text-white/30">{role}</span>
-                      <span className="text-white/70 font-medium">{name}</span>
+                <div className="space-y-2">
+                  {selected.staff.map((s, i) => (
+                    <div key={i} className="p-2 rounded-lg bg-white/3 border border-white/5">
+                      <div className="flex justify-between items-center text-[12px] mb-1">
+                        <span className="text-white/30">{s.role}</span>
+                        <span className="text-white/70 font-medium">{s.name}</span>
+                      </div>
+                      {s.email && <div className="text-[11px] text-blue-400/60 font-['JetBrains_Mono'] truncate">{s.email}</div>}
+                      {s.phone && <div className="text-[11px] text-white/25 font-['JetBrains_Mono']">{s.phone}</div>}
                     </div>
                   ))}
                 </div>
@@ -1325,6 +1516,7 @@ function OutreachPage() {
     setTimeout(() => { ta.selectionStart = ta.selectionEnd = start + key.length + 4; ta.focus(); }, 0);
   };
 
+  const previewCoachName = (coach: typeof previewCoach) => { const s = coach?.staff?.find(st => st.email); return s ? s.name.split(" ").pop() || s.name : coach?.headCoach?.split(" ").pop() || coach?.headCoach || "Coach"; };
   const resolved = (text: string, coach: typeof previewCoach) =>
     text
       .replace(/\{\{PlayerName\}\}/g, getPlayer().name)
@@ -1340,7 +1532,7 @@ function OutreachPage() {
       .replace(/\{\{Stats\}\}/g, getPlayer().stats)
       .replace(/\{\{HighlightUrl\}\}/g, getPlayer().highlightUrl)
       .replace(/\{\{FilmUrl\}\}/g, getPlayer().fullFilmUrl)
-      .replace(/\{\{CoachName\}\}/g, coach.headCoach.split(" ").pop() || coach.headCoach)
+      .replace(/\{\{CoachName\}\}/g, previewCoachName(coach))
       .replace(/\{\{School\}\}/g, coach.school)
       .replace(/\{\{Conference\}\}/g, coach.conference)
       .replace(/\{\{Division\}\}/g, coach.division);
@@ -1469,10 +1661,11 @@ function CampaignsPage({ onSendEmail, coaches, onEmailSent }: { onSendEmail?: (c
   const [reviewIndex, setReviewIndex] = useState(0);
   const [sendingReview, setSendingReview] = useState(false);
   const targetCoaches = (c: Campaign) => coaches.filter(cf => c.division.includes(cf.division as any));
+  const coachName = (coach: Coach) => { const s = coach.staff.find(st => st.email); return s ? s.name.split(" ").pop() || s.name : coach.headCoach.split(" ").pop() || coach.headCoach; };
   const resolveSubject = (c: Campaign, coach: Coach) => getTemplate().subject
     .replace(/\{\{PlayerName\}\}/g, getPlayer().name).replace(/\{\{Position\}\}/g, getPlayer().position)
     .replace(/\{\{GraduationYear\}\}/g, getPlayer().graduationClass).replace(/\{\{Division\}\}/g, coach.division)
-    .replace(/\{\{CoachName\}\}/g, coach.headCoach.split(" ").pop() || coach.headCoach).replace(/\{\{School\}\}/g, coach.school);
+    .replace(/\{\{CoachName\}\}/g, coachName(coach)).replace(/\{\{School\}\}/g, coach.school);
   const resolveBody = (coach: Coach) => getTemplate().body
     .replace(/\{\{PlayerName\}\}/g, getPlayer().name).replace(/\{\{Position\}\}/g, getPlayer().position)
     .replace(/\{\{Height\}\}/g, getPlayer().height).replace(/\{\{HeightCm\}\}/g, getPlayer().heightCm)
@@ -1481,7 +1674,7 @@ function CampaignsPage({ onSendEmail, coaches, onEmailSent }: { onSendEmail?: (c
     .replace(/\{\{CurrentTeam\}\}/g, getPlayer().currentTeam).replace(/\{\{GPA\}\}/g, getPlayer().gpa)
     .replace(/\{\{Stats\}\}/g, getPlayer().stats)
     .replace(/\{\{HighlightUrl\}\}/g, getPlayer().highlightUrl).replace(/\{\{FilmUrl\}\}/g, getPlayer().fullFilmUrl)
-    .replace(/\{\{CoachName\}\}/g, coach.headCoach.split(" ").pop() || coach.headCoach).replace(/\{\{School\}\}/g, coach.school)
+    .replace(/\{\{CoachName\}\}/g, coachName(coach)).replace(/\{\{School\}\}/g, coach.school)
     .replace(/\{\{Conference\}\}/g, coach.conference).replace(/\{\{Division\}\}/g, coach.division);
 
   const toggleStatus = (id: string) => {
@@ -1500,7 +1693,7 @@ function CampaignsPage({ onSendEmail, coaches, onEmailSent }: { onSendEmail?: (c
   const totalPending = campaigns.reduce((s, c) => s + (c.reviewRequired ? c.pendingReview : 0), 0);
 
   const runCampaign = async (campaign: Campaign) => {
-    if (campaign.reviewRequired) { setReviewCampaign(campaign); setReviewIndex(0); return; }
+    if (campaign.reviewRequired) { setReviewCampaign(campaign); setReviewIndex(0); setCampaigns(prev => prev.map(pc => pc.id === campaign.id ? { ...pc, pendingReview: targetCoaches(campaign).filter(cf => getStaffEmails(cf)).length } : pc)); return; }
     setSendingId(campaign.id);
     const targets = coaches.filter(c => campaign.division.includes(c.division as any));
     const sentIds = new Set<string>();
@@ -1509,17 +1702,21 @@ function CampaignsPage({ onSendEmail, coaches, onEmailSent }: { onSendEmail?: (c
     let variation = 0;
     for (const coach of targets) {
       if (sentIds.has(coach.id)) continue;
+      const allEmails = getStaffEmails(coach);
+      if (!allEmails) continue;
       sentIds.add(coach.id);
       variation++;
       const tpl = getTemplate();
       const intro = INTROS[variation % INTROS.length];
       const introPrefix = variation > 1 ? `[${variation}nd outreach] ` : "";
+      const firstStaff = coach.staff.find(s => s.email);
+      const coachName = firstStaff?.name || coach.headCoach;
       const subject = introPrefix + tpl.subject
         .replace(/\{\{PlayerName\}\}/g, getPlayer().name)
         .replace(/\{\{Position\}\}/g, getPlayer().position)
         .replace(/\{\{GraduationYear\}\}/g, getPlayer().graduationClass)
         .replace(/\{\{Division\}\}/g, coach.division)
-        .replace(/\{\{CoachName\}\}/g, coach.headCoach.split(" ").pop() || coach.headCoach)
+        .replace(/\{\{CoachName\}\}/g, coachName.split(" ").pop() || coachName)
         .replace(/\{\{School\}\}/g, coach.school);
       let body = tpl.body
         .replace(/\{\{PlayerName\}\}/g, getPlayer().name)
@@ -1535,16 +1732,15 @@ function CampaignsPage({ onSendEmail, coaches, onEmailSent }: { onSendEmail?: (c
         .replace(/\{\{Stats\}\}/g, getPlayer().stats)
         .replace(/\{\{HighlightUrl\}\}/g, getPlayer().highlightUrl)
         .replace(/\{\{FilmUrl\}\}/g, getPlayer().fullFilmUrl)
-        .replace(/\{\{CoachName\}\}/g, coach.headCoach.split(" ").pop() || coach.headCoach)
+        .replace(/\{\{CoachName\}\}/g, coachName.split(" ").pop() || coachName)
         .replace(/\{\{School\}\}/g, coach.school)
         .replace(/\{\{Conference\}\}/g, coach.conference)
         .replace(/\{\{Division\}\}/g, coach.division);
       if (variation > 1) body = `${intro}\n\n${body}`;
       const html = body.replace(/\n/g, "<br>");
-      const { success } = await sendEmail(coach.email, subject, html);
-      if (success) { sent++; onEmailSent?.(coach.id, subject); }
+      const { success } = await sendEmail(allEmails, subject, html);
+      if (success) { sent++; onEmailSent?.(coach.id, subject); setCampaigns(prev => prev.map(cc => cc.id === campaign.id ? { ...cc, sent: cc.sent + 1 } : cc)); }
       else failed++;
-      setCampaigns(prev => prev.map(c => c.id === campaign.id ? { ...c, sent: c.sent + 1 } : c));
       if (targets.length > 1) await delay(45000 + Math.random() * 45000);
     }
     setSendingId(null);
@@ -1607,7 +1803,7 @@ function CampaignsPage({ onSendEmail, coaches, onEmailSent }: { onSendEmail?: (c
                       </Btn>
                     )}
                     {c.status === "draft" && c.reviewRequired && (
-                      <Btn variant="primary" size="sm" onClick={() => { setReviewCampaign(c); setReviewIndex(0); }}>
+                      <Btn variant="primary" size="sm" onClick={() => { setReviewCampaign(c); setReviewIndex(0); setCampaigns(prev => prev.map(pc => pc.id === c.id ? { ...pc, pendingReview: targetCoaches(c).filter(cf => getStaffEmails(cf)).length } : pc)); }}>
                         <Send size={12} /> Review & Send
                       </Btn>
                     )}
@@ -1663,7 +1859,7 @@ function CampaignsPage({ onSendEmail, coaches, onEmailSent }: { onSendEmail?: (c
                       <AlertCircle size={12} />
                       {c.pendingReview} drafts waiting for your approval before they are sent
                     </div>
-                    <Btn variant="outline" size="xs" onClick={() => { setReviewCampaign(c); setReviewIndex(0); }}>Review & Approve <ArrowRight size={10} /></Btn>
+                    <Btn variant="outline" size="xs" onClick={() => { setReviewCampaign(c); setReviewIndex(0); setCampaigns(prev => prev.map(pc => pc.id === c.id ? { ...pc, pendingReview: targetCoaches(c).filter(cf => getStaffEmails(cf)).length } : pc)); }}>Review & Approve <ArrowRight size={10} /></Btn>
                   </div>
                 </>
               )}
@@ -1672,28 +1868,33 @@ function CampaignsPage({ onSendEmail, coaches, onEmailSent }: { onSendEmail?: (c
         })}
       </div>
 
-      {reviewCampaign && targetCoaches(reviewCampaign)[reviewIndex] && (() => {
+      {reviewCampaign && (() => {
         const c = reviewCampaign;
-        const coach = targetCoaches(c)[reviewIndex];
+        const reviewCoaches = targetCoaches(c).filter(cf => getStaffEmails(cf));
+        const coach = reviewCoaches[reviewIndex];
+        if (!coach) return null;
+        const allEmails = getStaffEmails(coach);
         const subj = resolveSubject(c, coach);
         let body = resolveBody(coach);
-        if (reviewIndex > 0) body = `${INTROS[reviewIndex % INTROS.length]} — ${reviewIndex > 0 ? `follow-up #${reviewIndex + 1}: ` : ""}${body}`;
+        if (reviewIndex > 0) body = `${INTROS[reviewIndex % INTROS.length]} — follow-up #${reviewIndex + 1}: ${body}`;
+        const advance = () => {
+          const next = reviewCoaches[reviewIndex + 1];
+          if (next) setReviewIndex(i => i + 1); else setReviewCampaign(null);
+        };
         const handleApprove = async () => {
           setSendingReview(true);
-          const { success } = await sendEmail(coach.email, subj, body.replace(/\n/g, "<br>"));
+          const { success } = await sendEmail(allEmails, subj, body.replace(/\n/g, "<br>"));
           setSendingReview(false);
           if (success) {
-            pushToast(`Sent to ${coach.headCoach} at ${coach.school}`, "success");
+            pushToast(`Sent to ${coach.staff.length} staff at ${coach.school}`, "success");
             onEmailSent?.(coach.id, subj);
             setCampaigns((prev: Campaign[]) => prev.map(pc => pc.id === c.id ? { ...pc, sent: pc.sent + 1, pendingReview: Math.max(0, pc.pendingReview - 1) } : pc));
-            const next = targetCoaches(c)[reviewIndex + 1];
-            if (next) setReviewIndex(i => i + 1); else setReviewCampaign(null);
+            advance();
           } else pushToast("Failed to send. Check Gmail settings.", "error");
         };
         const handleSkip = () => {
           setCampaigns((prev: Campaign[]) => prev.map(pc => pc.id === c.id ? { ...pc, pendingReview: Math.max(0, pc.pendingReview - 1) } : pc));
-          const next = targetCoaches(c)[reviewIndex + 1];
-          if (next) setReviewIndex(i => i + 1); else setReviewCampaign(null);
+          advance();
         };
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -1702,12 +1903,12 @@ function CampaignsPage({ onSendEmail, coaches, onEmailSent }: { onSendEmail?: (c
               <div className="flex items-center justify-between px-6 py-4 border-b border-white/8">
                 <div>
                   <h2 className="text-base font-semibold text-white font-['Plus_Jakarta_Sans']">Draft Review — {c.name}</h2>
-                  <p className="text-xs text-white/30 mt-0.5">Draft {reviewIndex + 1} of {c.pendingReview} · {coach.headCoach} — {coach.school}</p>
+                  <p className="text-xs text-white/30 mt-0.5">Draft {reviewIndex + 1} of {reviewCoaches.length} · {coach.school}</p>
                 </div>
                 <button onClick={() => setReviewCampaign(null)} className="text-white/25 hover:text-white/60 transition-colors"><X size={16} /></button>
               </div>
               <div className="flex-1 overflow-y-auto p-5 space-y-4">
-                <div className="flex items-center gap-2 text-xs text-white/40 bg-white/4 rounded-lg px-3 py-2 border border-white/6"><Mail size={12} /> To: {coach.email}</div>
+                <div className="flex items-center gap-2 text-xs text-white/40 bg-white/4 rounded-lg px-3 py-2 border border-white/6"><Mail size={12} /> To: {coach.staff.filter(s => s.email).length} staff at {coach.school}</div>
                 <Field label="Subject"><div className="text-sm text-white/80 px-3 py-2 bg-white/3 rounded-lg border border-white/6">{subj}</div></Field>
                 <Field label="Message"><div className="text-[12.5px] text-white/75 leading-relaxed px-4 py-3 bg-white/3 rounded-xl border border-white/6 whitespace-pre-wrap font-['JetBrains_Mono']">{body}</div></Field>
               </div>
@@ -2172,6 +2373,7 @@ function SettingsPage({ setPage }: { setPage: (p: Page) => void }) {
 
   const testConnection = async () => {
     setTesting(true);
+    setEmailConfig(gmailUser, gmailPass);
     const { success, error } = await sendEmail(gmailUser, "ScoutFlow Test", "<h2>Test email from ScoutFlow</h2><p>If you receive this, your Gmail is configured correctly.</p>");
     setTesting(false);
     if (success) pushToast("Test email sent successfully — check your inbox", "success");
@@ -2419,15 +2621,23 @@ function setEmailConfig(user: string, pass: string) {
 }
 
 async function sendEmail(to: string, subject: string, html: string): Promise<{ success: boolean; error?: string }> {
+  if (!to) return { success: false, error: "Recipient email address is empty — update the coach profile." };
+  if (!subject) return { success: false, error: "Email subject is empty." };
+  if (!html) return { success: false, error: "Email body is empty." };
   const cfg = getEmailConfig();
-  const res = await fetch("/api/send-email", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ to, subject, html, user: cfg.user, pass: cfg.pass }),
-  });
-  const data = await res.json();
-  if (!res.ok) return { success: false, error: data.error || "Failed to send" };
-  return { success: true };
+  if (!cfg.user || !cfg.pass) return { success: false, error: "Gmail not configured. Go to Settings > Email Accounts." };
+  try {
+    const res = await fetch("/api/send-email", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ to, subject, html, user: cfg.user, pass: cfg.pass }),
+    });
+    const data = await res.json();
+    if (!res.ok) return { success: false, error: data.error || "Failed to send" };
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: "Network error — check your connection or the API endpoint." };
+  }
 }
 
 // ─── TOAST ────────────────────────────────────────────────────────────────────
@@ -2461,13 +2671,14 @@ function ToastBar() {
 
 function ComposeEmailModal({ coach, onClose, onEmailSent }: { coach: Coach; onClose: () => void; onEmailSent?: (subject: string) => void }) {
   const tpl = getTemplate();
+  const recipientName = coach.staff[0]?.name || coach.headCoach;
   const [subject, setSubject] = useState(
     tpl.subject
       .replace(/\{\{PlayerName\}\}/g, getPlayer().name)
       .replace(/\{\{Position\}\}/g, getPlayer().position)
       .replace(/\{\{GraduationYear\}\}/g, getPlayer().graduationClass)
       .replace(/\{\{Division\}\}/g, coach.division)
-      .replace(/\{\{CoachName\}\}/g, coach.headCoach.split(" ").pop() || coach.headCoach)
+      .replace(/\{\{CoachName\}\}/g, recipientName.split(" ").pop() || recipientName)
       .replace(/\{\{School\}\}/g, coach.school)
   );
   const [body, setBody] = useState(
@@ -2485,21 +2696,22 @@ function ComposeEmailModal({ coach, onClose, onEmailSent }: { coach: Coach; onCl
       .replace(/\{\{Stats\}\}/g, getPlayer().stats)
       .replace(/\{\{HighlightUrl\}\}/g, getPlayer().highlightUrl)
       .replace(/\{\{FilmUrl\}\}/g, getPlayer().fullFilmUrl)
-      .replace(/\{\{CoachName\}\}/g, coach.headCoach.split(" ").pop() || coach.headCoach)
+      .replace(/\{\{CoachName\}\}/g, recipientName.split(" ").pop() || recipientName)
       .replace(/\{\{School\}\}/g, coach.school)
       .replace(/\{\{Conference\}\}/g, coach.conference)
       .replace(/\{\{Division\}\}/g, coach.division)
   );
   const [sending, setSending] = useState(false);
+  const allEmails = getStaffEmails(coach);
 
   const handleSend = async () => {
-    if (!subject.trim() || !body.trim()) return;
+    if (!subject.trim() || !body.trim() || !allEmails) return;
     setSending(true);
     const htmlBody = body.replace(/\n/g, "<br>");
-    const { success, error } = await sendEmail(coach.email, subject, htmlBody);
+    const { success, error } = await sendEmail(allEmails, subject, htmlBody);
     setSending(false);
     if (success) {
-      pushToast(`Email sent to ${coach.headCoach} at ${coach.school}`, "success");
+      pushToast(`Email sent to ${coach.staff.length} staff at ${coach.school}`, "success");
       onEmailSent?.(subject);
       onClose();
     } else {
@@ -2516,12 +2728,25 @@ function ComposeEmailModal({ coach, onClose, onEmailSent }: { coach: Coach; onCl
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/8">
           <div>
             <h2 className="text-base font-semibold text-white font-['Plus_Jakarta_Sans']">Compose Email</h2>
-            <p className="text-xs text-white/30 mt-0.5">To: {coach.headCoach} — {coach.school} ({coach.email})</p>
+            <p className="text-xs text-white/30 mt-0.5">To: {coach.staff.length} staff at {coach.school}</p>
           </div>
           <button onClick={onClose} className="text-white/25 hover:text-white/60 transition-colors"><X size={16} /></button>
         </div>
 
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
+          {/* Recipients list */}
+          <div>
+            <div className="text-[10px] font-semibold text-white/25 uppercase tracking-[0.08em] mb-2">Recipients</div>
+            <div className="space-y-1">
+              {coach.staff.filter(s => s.email).map((s, i) => (
+                <div key={i} className="flex items-center gap-2 text-[11px] text-white/50 font-['JetBrains_Mono']">
+                  <Mail size={10} className="text-white/20" />
+                  <span>{s.name}</span>
+                  <span className="text-white/30">&lt;{s.email}&gt;</span>
+                </div>
+              ))}
+            </div>
+          </div>
           <Field label="Subject">
             <Input value={subject} onChange={setSubject} placeholder="Email subject..." />
           </Field>
@@ -2536,11 +2761,11 @@ function ComposeEmailModal({ coach, onClose, onEmailSent }: { coach: Coach; onCl
         </div>
 
         <div className="px-6 py-4 border-t border-white/8 flex items-center justify-between">
-          <span className="text-[11px] text-white/25 font-['JetBrains_Mono']">{coach.email}</span>
+          <span className="text-[11px] text-white/25 font-['JetBrains_Mono']">{coach.staff.filter(s => s.email).length} recipients</span>
           <div className="flex gap-2">
             <Btn variant="ghost" size="sm" onClick={onClose}>Cancel</Btn>
-            <Btn variant="primary" size="sm" onClick={handleSend} disabled={sending || !subject.trim() || !body.trim()}>
-              {sending ? <><RefreshCw size={12} className="animate-spin" /> Sending...</> : <><Send size={12} /> Send Email</>}
+            <Btn variant="primary" size="sm" onClick={handleSend} disabled={sending || !subject.trim() || !body.trim() || !allEmails}>
+              {sending ? <><RefreshCw size={12} className="animate-spin" /> Sending...</> : <><Send size={12} /> Send to All Staff</>}
             </Btn>
           </div>
         </div>
