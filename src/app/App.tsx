@@ -9,7 +9,7 @@ import {
   Activity, Target, Shield, Key, Palette, Database, Link2,
   Video, User, Cpu, Info, SlidersHorizontal, Layers, Inbox,
   Calendar, MapPin, GraduationCap, Trophy, Zap, BookOpen, Archive,
-  Command, ChevronUp, ArrowRight, Dot, Circle, Hash
+  Command, ChevronUp, ArrowRight, Dot, Circle, Hash, Menu
 } from "lucide-react";
 import {
   AreaChart, Area, BarChart, Bar, LineChart, Line,
@@ -374,10 +374,12 @@ const NAV_BOTTOM = [
   { id: "settings", label: "Settings", icon: Settings },
 ] as const;
 
-function Sidebar({ page, setPage }: { page: Page; setPage: (p: Page) => void }) {
+function Sidebar({ page, setPage, open, onToggle }: { page: Page; setPage: (p: Page) => void; open: boolean; onToggle: () => void }) {
   const totalOffers = COACHES.filter(c => c.stage === "Offer").length;
   return (
-    <aside className="fixed inset-y-0 left-0 w-[216px] flex flex-col border-r border-white/6 bg-[#080810]/60 backdrop-blur-xl z-40">
+    <>
+      {open && <div className="fixed inset-0 bg-black/50 z-30 lg:hidden" onClick={onToggle} />}
+      <aside className={`fixed inset-y-0 left-0 w-[216px] flex flex-col border-r border-white/6 bg-[#080810]/60 backdrop-blur-xl z-40 transition-transform duration-300 ${open ? 'translate-x-0' : '-translate-x-full'}`}>
       {/* Brand */}
       <div className="h-14 flex items-center px-4 border-b border-white/6 gap-3">
         <div className="w-6 h-6 rounded-md bg-white flex items-center justify-center flex-shrink-0">
@@ -447,16 +449,19 @@ function Sidebar({ page, setPage }: { page: Page; setPage: (p: Page) => void }) 
           <ChevronRight size={12} className="text-white/20 flex-shrink-0" />
         </button>
       </div>
-    </aside>
+    </aside></>
   );
 }
 
 // ─── TOPBAR ───────────────────────────────────────────────────────────────────
 
-function TopBar({ title, children }: { title: string; children?: React.ReactNode }) {
+function TopBar({ title, children, onToggleSidebar }: { title: string; children?: React.ReactNode; onToggleSidebar?: () => void }) {
   return (
     <header className="h-14 flex items-center justify-between px-6 border-b border-white/6 bg-[#0b0b0f]/80 backdrop-blur-sm sticky top-0 z-20">
       <div className="flex items-center gap-3">
+        <button onClick={onToggleSidebar} className="w-7 h-7 flex items-center justify-center text-white/35 hover:text-white/70 rounded-lg hover:bg-white/5 transition-colors flex-shrink-0" title="Toggle sidebar">
+          <Menu size={14} />
+        </button>
         <h2 className="text-sm font-semibold text-white">{title}</h2>
         {children}
       </div>
@@ -2368,6 +2373,7 @@ const PAGE_TITLES: Record<Page, string> = {
 
 export default function App() {
   const [page, setPage] = useState<Page>("dashboard");
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [emailModalCoach, setEmailModalCoach] = useState<Coach | null>(null);
   const [emailConfig, setEmailConfigState] = useState(getEmailConfig());
 
@@ -2382,10 +2388,10 @@ export default function App() {
         <div className="absolute bottom-0 right-0 w-[400px] h-[300px] bg-blue-600/3 rounded-full blur-[100px]" />
       </div>
 
-      <Sidebar page={page} setPage={setPage} />
+      <Sidebar page={page} setPage={setPage} open={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
 
-      <div className="flex-1 ml-[216px] flex flex-col min-h-screen">
-        <TopBar title={PAGE_TITLES[page]} />
+      <div className={`flex-1 flex flex-col min-h-screen transition-all duration-300 ${sidebarOpen ? 'ml-[216px]' : 'ml-0'}`}>
+        <TopBar title={PAGE_TITLES[page]} onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
         <main className={cx("flex-1 overflow-hidden", page === "pipeline" ? "overflow-auto" : "overflow-y-auto")}>
           {page === "dashboard" && <DashboardPage setPage={setPage} />}
           {page === "coaches" && <CoachesPage onSendEmail={setEmailModalCoach} />}
